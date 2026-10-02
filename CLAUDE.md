@@ -35,6 +35,7 @@ Before implementing anything, read the PRD sections the task cites. If a task co
 rakshak/
 ├── CLAUDE.md  README.md
 ├── docs/               # git-ignored: PRD.md PRD.pdf IMPLEMENTATION.md PROMPTBOOK.md
+│   └── design/         # Claude Design export (HTML frames, read-only reference)
 ├── .env.example  .gitignore  pyproject.toml
 ├── config/thresholds.json  parents.example.json  (parents.json git-ignored)
 ├── data/
@@ -83,7 +84,8 @@ cd pwa && npm run build
 - Fonts: Mukta (UI), Yatra One (wordmark only), JetBrains Mono (status numbers). Load via Google Fonts with `font-display: swap`.
 - Every verdict shows color + icon + word. Tap targets ≥ 56px; body ≥ 18px; Hindi line-height 1.6.
 - UI strings come from `pwa/src/i18n/en.json` (default) / `hi.json`; never hard-code copy in components.
-- Match the Claude Design frames; if a screen isn't designed, follow the nearest designed pattern and say so.
+- Visual source of truth: the Claude Design HTML in `docs/design/` (one file per frame group: A design system, B Mom/Android, C Dad/iPhone, D son/status, E outside layer). Open the matching frame before building or changing any screen and match it exactly; if a screen isn't designed, follow the nearest designed pattern and say so.
+- Treat `docs/design/` as read-only reference. Don't import its HTML/CSS into `pwa/` directly; rebuild as React components using `tokens.css`.
 - Brand files live in `brand/`; don't redraw or recolor the logo.
 
 ## Git and GitHub
