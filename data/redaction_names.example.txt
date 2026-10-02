@@ -1,0 +1,10 @@
+# Copy to data/redaction_names.txt (git-ignored) and replace with real entries.
+# One entry per line. Matching is case-insensitive and whole-word.
+# Plain lines are names → <NAME>; list every spelling you expect (Latin and Devanagari).
+Sunita
+सुनीता
+Ramesh Kumar
+# addr: lines are addresses → <ADDR>
+addr: 12 Example Nagar
+# phone: lines are family/personal numbers → fully masked as <PHONE>
+phone: +91 90000 00000

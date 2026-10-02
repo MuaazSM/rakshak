@@ -1,6 +1,7 @@
 # Private data — never commit (CLAUDE.md hard rules, PRD §13)
 data/raw/
 data/redacted/
+data/splits/*.jsonl
 var/
 media/
 models/
