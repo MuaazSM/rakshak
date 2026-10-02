@@ -1,0 +1,121 @@
+{
+  "app": {
+    "name": "TODO",
+    "back": "TODO",
+    "callSon": "TODO",
+    "private": "TODO"
+  },
+  "B1": {
+    "wordmark": "Rakshak",
+    "tagline": "TODO",
+    "install": "TODO",
+    "hint": "TODO",
+    "continue": "TODO"
+  },
+  "B2": {
+    "wordmark": "Rakshak",
+    "settings": "TODO",
+    "check": "TODO",
+    "talk": "TODO",
+    "recent": "TODO",
+    "recentEmpty": "TODO",
+    "today": "TODO",
+    "yesterday": "TODO",
+    "earlier": "TODO"
+  },
+  "B4": {
+    "title": "TODO",
+    "pasteLabel": "TODO",
+    "pastePlaceholder": "TODO",
+    "clear": "TODO",
+    "or": "TODO",
+    "chooseScreenshot": "TODO",
+    "screenshotChosen": "TODO",
+    "removeScreenshot": "TODO",
+    "submit": "TODO"
+  },
+  "B5": {
+    "title": "TODO",
+    "stepReading": "TODO",
+    "stepChecking": "TODO",
+    "stepExplaining": "TODO",
+    "eta": "TODO"
+  },
+  "verdict": {
+    "SCAM": {
+      "headline": "TODO",
+      "word": "TODO",
+      "recent": "TODO"
+    },
+    "SUSPICIOUS": {
+      "headline": "TODO",
+      "word": "TODO",
+      "recent": "TODO"
+    },
+    "SAFE": {
+      "headline": "TODO",
+      "word": "TODO",
+      "recent": "TODO"
+    },
+    "UNKNOWN": {
+      "headline": "TODO",
+      "word": "TODO",
+      "recent": "TODO",
+      "explanation": "TODO"
+    },
+    "listenAgain": "TODO",
+    "tryAgain": "TODO",
+    "ok": "TODO",
+    "ios": {
+      "done": "TODO",
+      "site": "TODO"
+    },
+    "noSpeech": "TODO",
+    "loading": "TODO",
+    "flagFallback": "TODO"
+  },
+  "flags": {
+    "lookalike_link": "TODO",
+    "lookalike_domain": "TODO",
+    "apk_link": "TODO",
+    "shortener_link": "TODO",
+    "threat_or_arrest": "TODO",
+    "threat_lexicon": "TODO",
+    "urgency_deadline": "TODO",
+    "urgency_plus_payment": "TODO",
+    "asks_payment": "TODO",
+    "asks_otp_or_pin": "TODO",
+    "upi_collect": "TODO",
+    "upi_pin_to_receive": "TODO",
+    "impersonates_authority": "TODO",
+    "unregistered_sender": "TODO",
+    "foreign_code_authority": "TODO",
+    "too_good_to_be_true": "TODO",
+    "secrecy_request": "TODO"
+  },
+  "B10": {
+    "title": "TODO",
+    "prompt": "TODO",
+    "holdToTalk": "TODO",
+    "listening": "TODO",
+    "releaseHint": "TODO",
+    "slideCancel": "TODO",
+    "cancelled": "TODO",
+    "cancelledBody": "TODO",
+    "micDenied": "TODO",
+    "micMissing": "TODO",
+    "tooShort": "TODO"
+  },
+  "B11": {
+    "title": "TODO",
+    "languageLabel": "TODO",
+    "english": "TODO",
+    "hindi": "हिंदी",
+    "selected": "TODO",
+    "saveFailed": "TODO"
+  },
+  "errors": {
+    "network": "TODO",
+    "generic": "TODO"
+  }
+}

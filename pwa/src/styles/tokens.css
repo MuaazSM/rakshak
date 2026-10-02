@@ -1,0 +1,89 @@
+/*
+ * Rakshak design tokens, inside layer only (PRD §18.2 / §18.3).
+ * Names follow PRD §18.2. Values match docs/design tokens.css.
+ * Outside-layer tokens (crimson, Teko, hard shadow) are deliberately absent:
+ * they are marketing-only and never ship in the app.
+ */
+@import url("https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;600;700&family=Yatra+One&family=JetBrains+Mono:wght@400;500&display=swap");
+
+:root {
+  /* Surfaces and text */
+  --paper: #fbf7f0;
+  --surface: #ffffff;
+  --ink: #1c1917;
+  --ink-muted: #57534e;
+  --hairline: #e7e0d6;
+  --haldi: #f5c518; /* fill / stroke / focus only, never text on light */
+  --disabled-bg: #d6d3d1;
+
+  /* Verdict pairs (text on tint, AA) */
+  --scam-fg: #b42318;
+  --scam-bg: #fee4e2;
+  --careful-fg: #b54708;
+  --careful-bg: #fef0c7;
+  --safe-fg: #067647;
+  --safe-bg: #dcfae6;
+  --unknown-fg: #475467;
+  --unknown-bg: #f2f4f7;
+
+  /* Type */
+  --font-ui: "Mukta", "Noto Sans Devanagari", system-ui, sans-serif;
+  --font-display: "Yatra One", "Rozha One", serif; /* wordmark only */
+  --font-mono: "JetBrains Mono", "IBM Plex Mono", monospace;
+
+  --text-wordmark: 56px;
+  --text-wordmark-bar: 30px;
+  --text-verdict: 36px; /* 32 for long headlines */
+  --text-verdict-long: 32px;
+  --text-hero: 28px;
+  --text-title: 26px;
+  --text-bar-title: 24px;
+  --text-card-title: 24px;
+  --text-body: 19px; /* never below 18 */
+  --text-chip: 17px;
+  --text-button: 20px;
+  --text-button-secondary: 19px;
+  --text-meta: 16px;
+  --text-mono: 13px;
+  --lh-body: 1.45;
+  --lh-hindi: 1.6;
+  --lh-heading: 1.25;
+
+  /* Space (4-pt) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* Radii and targets */
+  --radius-chip: 12px;
+  --radius-card: 16px;
+  --radius-pill: 999px;
+  --arch: 50% 50% 16px 16px / 52px 52px 16px 16px; /* verdict card top */
+  --arch-inner: 50% 50% 11px 11px / 46px 46px 11px 11px;
+  --target-min: 56px;
+
+  /* Focus: 3px paper gap + 3px haldi ring */
+  --focus-ring: 0 0 0 3px var(--paper), 0 0 0 6px var(--haldi);
+
+  /* Block-print strip (Home, 12px) */
+  --strip-h: 12px;
+
+  /* Motion */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --dur-verdict: 420ms;
+  --dur-progress: 1800ms;
+  --dur-pulse: 1600ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-verdict: 0ms;
+    --dur-progress: 0ms;
+    --dur-pulse: 0ms;
+  }
+}

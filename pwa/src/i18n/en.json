@@ -1,0 +1,121 @@
+{
+  "app": {
+    "name": "Rakshak",
+    "back": "Back",
+    "callSon": "Call {son}",
+    "private": "Your messages never leave home."
+  },
+  "B1": {
+    "wordmark": "Rakshak",
+    "tagline": "Send us a message. We’ll tell you if it’s real or a scam.",
+    "install": "Add to Home screen",
+    "hint": "Open the browser menu and tap “Add to Home screen”.",
+    "continue": "Continue in browser"
+  },
+  "B2": {
+    "wordmark": "Rakshak",
+    "settings": "Settings",
+    "check": "Check a message",
+    "talk": "Describe a call",
+    "recent": "Recently checked",
+    "recentEmpty": "Nothing checked yet.",
+    "today": "Today, {time}",
+    "yesterday": "Yesterday, {time}",
+    "earlier": "{date}, {time}"
+  },
+  "B4": {
+    "title": "Check a message",
+    "pasteLabel": "Paste the message here",
+    "pastePlaceholder": "",
+    "clear": "Clear",
+    "or": "or",
+    "chooseScreenshot": "Choose a screenshot",
+    "screenshotChosen": "Screenshot added",
+    "removeScreenshot": "Remove",
+    "submit": "Check"
+  },
+  "B5": {
+    "title": "Checking on the home computer…",
+    "stepReading": "Reading",
+    "stepChecking": "Checking",
+    "stepExplaining": "Explaining",
+    "eta": "Usually takes less than 10 seconds"
+  },
+  "verdict": {
+    "SCAM": {
+      "headline": "This is a scam",
+      "word": "Scam",
+      "recent": "Scam"
+    },
+    "SUSPICIOUS": {
+      "headline": "Be careful",
+      "word": "Be careful",
+      "recent": "Be careful"
+    },
+    "SAFE": {
+      "headline": "This looks like a normal message",
+      "word": "Looks normal",
+      "recent": "Looks normal"
+    },
+    "UNKNOWN": {
+      "headline": "Couldn't check right now",
+      "word": "Couldn’t check",
+      "recent": "Couldn’t check",
+      "explanation": "The home computer is offline. Don’t open any links, and call {son}."
+    },
+    "listenAgain": "Listen again",
+    "tryAgain": "Try again",
+    "ok": "OK",
+    "ios": {
+      "done": "Done",
+      "site": "rakshak · home"
+    },
+    "noSpeech": "Reading is turned off on this phone, so the message is shown here only.",
+    "loading": "Opening the answer…",
+    "flagFallback": "Warning sign"
+  },
+  "flags": {
+    "lookalike_link": "Fake link",
+    "lookalike_domain": "Fake link",
+    "apk_link": "Dangerous link",
+    "shortener_link": "Hidden link",
+    "threat_or_arrest": "Threat",
+    "threat_lexicon": "Threat",
+    "urgency_deadline": "Rushing you",
+    "urgency_plus_payment": "Rushing you to pay",
+    "asks_payment": "Asks for money",
+    "asks_otp_or_pin": "Asks for OTP or PIN",
+    "upi_collect": "Money request",
+    "upi_pin_to_receive": "Asks for UPI PIN",
+    "impersonates_authority": "Pretends to be official",
+    "unregistered_sender": "Unknown number",
+    "foreign_code_authority": "Foreign number",
+    "too_good_to_be_true": "Too good to be true",
+    "secrecy_request": "Asks you to keep quiet"
+  },
+  "B10": {
+    "title": "Describe a call",
+    "prompt": "Hold the button and tell me who called and what they said",
+    "holdToTalk": "Hold to talk",
+    "listening": "Listening…",
+    "releaseHint": "Release to send · Slide left to cancel",
+    "slideCancel": "‹ Slide to cancel",
+    "cancelled": "Cancelled",
+    "cancelledBody": "Nothing was sent. Hold the button to try again.",
+    "micDenied": "The microphone is turned off for Rakshak. Turn it on in the browser settings, then try again.",
+    "micMissing": "This phone can’t record here.",
+    "tooShort": "That was too short. Hold the button a little longer."
+  },
+  "B11": {
+    "title": "Settings",
+    "languageLabel": "Explanation language",
+    "english": "English",
+    "hindi": "हिंदी",
+    "selected": "Selected",
+    "saveFailed": "Couldn’t save that. Try again."
+  },
+  "errors": {
+    "network": "Couldn’t reach the home computer.",
+    "generic": "Something went wrong. Try again."
+  }
+}
