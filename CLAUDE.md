@@ -49,6 +49,7 @@ rakshak/
 │   ├── explainer.py alerts.py tracing.py db.py settings.py schemas.py
 │   └── data/           # official_domains.txt shorteners.txt lexicon/ verdict_words.json templates/
 ├── pwa/                # React + Vite PWA
+├── brand/              # logo SVGs/PNGs, cover, hand-over cards (outside layer)
 ├── models/             # git-ignored GGUFs and base weights
 ├── notes/              # phase1.md failures.md
 ├── tests/
@@ -75,6 +76,15 @@ cd pwa && npm run build
 - Rules engine is pure functions with unit tests; no I/O, no model calls.
 - Eval scripts are deterministic (fixed seeds), write JSON, never print raw message text from `test.jsonl`.
 - Small, focused commits (see "Git and GitHub"). Note any commit after Mon 5 Oct 06:59 UTC in README.
+
+## Design rules (PRD §18)
+- Use tokens from `pwa/src/styles/tokens.css` only; no new colors. Never use crimson/maroon in the app; red means SCAM.
+- Never put text in `--haldi` on light backgrounds.
+- Fonts: Mukta (UI), Yatra One (wordmark only), JetBrains Mono (status numbers). Load via Google Fonts with `font-display: swap`.
+- Every verdict shows color + icon + word. Tap targets ≥ 56px; body ≥ 18px; Hindi line-height 1.6.
+- UI strings come from `pwa/src/i18n/{hi,en}.json`; never hard-code copy in components.
+- Match the Claude Design frames; if a screen isn't designed, follow the nearest designed pattern and say so.
+- Brand files live in `brand/`; don't redraw or recolor the logo.
 
 ## Git and GitHub
 - Remote: `https://github.com/MuaazSM/rakshak` (public), branch `main`. Remember it's public when deciding what to commit.
