@@ -1,0 +1,28 @@
+# Private data — never commit (CLAUDE.md hard rules, PRD §13)
+data/raw/
+var/
+media/
+models/
+*.db
+*.db-journal
+.env
+data/redaction_names.txt
+config/parents.json
+
+# PWA
+pwa/node_modules/
+pwa/dist/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+docs/
