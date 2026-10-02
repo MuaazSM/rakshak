@@ -60,7 +60,7 @@ def test_settings_cover_env_example(monkeypatch):
     s = Settings(_env_file=env_example)
     assert s.hub_host == "127.0.0.1"
     assert s.t_high is None and s.t_low is None
-    assert s.default_lang == "hi"
+    assert s.default_lang == "en"
     assert s.keep_media is False
 
 

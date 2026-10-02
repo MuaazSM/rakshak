@@ -51,7 +51,7 @@ class Settings(BaseSettings):
 
     # Phase 6: people, phone, alerts, tracing
     parents_file: Path = Path("config/parents.json")
-    default_lang: Lang = "hi"
+    default_lang: Lang = "en"
     son_name: str = "Muaaz"
     public_base_url: str | None = None
     ntfy_server: str = "https://ntfy.sh"

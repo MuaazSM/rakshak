@@ -44,9 +44,8 @@ Use only facts in VERDICT_JSON. Never change the verdict. Do not include links o
 # canonical: PRD Appendix A.3
 EXPLAINER_USER = "VERDICT_JSON = {verdict_json}"
 
-# canonical: PRD Appendix A.3 (LANGUAGE_NAME per request language)
+# canonical: PRD Appendix A.3 (LANGUAGE_NAME from the parent's language, default en)
 LANGUAGE_NAMES = {
-    "hi": 'Hindi (Devanagari script, everyday words; English loanwords like "bank", "OTP", '
-    '"link" are fine)',
-    "en": "English",
+    "en": "English (simple everyday words)",
+    "hi": 'Hindi (Devanagari; English loanwords like "bank", "OTP", "link" are fine)',
 }
