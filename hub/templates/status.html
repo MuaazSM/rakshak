@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="60">
+<meta name="robots" content="noindex">
+<title>Rakshak hub</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;600;700&family=Yatra+One&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --rk-paper: #FBF7F0; --rk-surface: #FFFFFF; --rk-ink: #1C1917; --rk-ink-muted: #57534E;
+  --rk-hairline: #E7E0D6; --rk-haldi: #F5C518;
+  --rk-scam-fg: #B42318; --rk-scam-bg: #FEE4E2;
+  --rk-careful-fg: #B54708; --rk-careful-bg: #FEF0C7;
+  --rk-normal-fg: #067647; --rk-normal-bg: #DCFAE6;
+  --rk-unknown-fg: #475467; --rk-unknown-bg: #F2F4F7;
+  --rk-font-ui: "Mukta", "Noto Sans Devanagari", sans-serif;
+  --rk-font-display: "Yatra One", "Rozha One", serif;
+  --rk-font-mono: "JetBrains Mono", "IBM Plex Mono", monospace;
+  --rk-radius-card: 16px; --rk-radius-pill: 999px;
+  --rk-focus-ring: 0 0 0 3px var(--rk-paper), 0 0 0 6px var(--rk-haldi);
+  --n: $parent_count;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--rk-paper); color: var(--rk-ink); font-family: var(--rk-font-ui); font-size: 16px; line-height: 1.45; }
+.num, .stat, .tile, .kv, .st, .vw, .row.ev, .fb-row, .head-note, .topbar .where { font-family: var(--rk-font-mono); }
+.muted { color: var(--rk-ink-muted); }
+.topbar { min-height: 56px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 8px 28px; background: var(--rk-surface); border-bottom: 1px solid var(--rk-hairline); }
+.mark svg { width: 26px; height: 26px; display: block; }
+.wordmark { font-family: var(--rk-font-display); font-size: 20px; }
+.topbar .where { margin-left: auto; font-size: 12px; color: var(--rk-ink-muted); }
+main { padding: 24px 28px; display: flex; flex-direction: column; gap: 20px; }
+.banner { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.badge { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex: none; }
+.badge.normal { background: var(--rk-normal-bg); color: var(--rk-normal-fg); }
+.badge.careful { background: var(--rk-careful-bg); color: var(--rk-careful-fg); }
+.banner h1 { margin: 0; font-size: 28px; font-weight: 700; line-height: 1.2; }
+.banner .sub { display: block; font-family: var(--rk-font-mono); font-size: 12px; color: var(--rk-ink-muted); }
+.banner .grow { flex: 1; }
+.stats { display: flex; gap: 24px; }
+.stat { display: flex; flex-direction: column; align-items: flex-end; font-size: 12px; color: var(--rk-ink-muted); }
+.stat-num { font-size: 20px; color: var(--rk-ink); font-weight: 500; }
+.stat-of { font-size: 12px; color: var(--rk-ink-muted); font-weight: 400; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; }
+.grid3 { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)) minmax(0, 1.6fr); gap: 20px; align-items: start; }
+.card { background: var(--rk-surface); border: 1px solid var(--rk-hairline); border-radius: var(--rk-radius-card); overflow: hidden; }
+.card h2 { margin: 0; min-height: 40px; display: flex; align-items: center; padding: 0 16px; font-size: 15px; font-weight: 700; border-bottom: 1px solid var(--rk-hairline); }
+.head-note { margin-left: auto; font-size: 12px; font-weight: 400; color: var(--rk-ink-muted); }
+.fb-count { margin-left: 8px; font-family: var(--rk-font-mono); font-size: 12px; font-weight: 400; color: var(--rk-ink-muted); }
+.scroll { overflow-x: auto; }
+.row { font-size: 12px; }
+.models-row { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.3fr) minmax(0, 1.5fr) 120px 72px 72px; min-width: 640px; font-family: var(--rk-font-mono); border-bottom: 1px solid var(--rk-hairline); }
+.models-row:last-child { border-bottom: 0; }
+.models-row .cell { padding: 12px 0; }
+.models-row .cell:first-child { padding-left: 16px; }
+.models-row .cell:last-child { padding-right: 16px; }
+.models-row.head .cell { padding: 8px 0; color: var(--rk-ink-muted); }
+.models-row.head .cell:first-child { padding-left: 16px; }
+.models-row .num { text-align: right; }
+.name { display: flex; flex-direction: column; }
+.name b { font-family: var(--rk-font-ui); font-size: 15px; font-weight: 600; }
+.st { display: flex; align-items: flex-start; gap: 6px; }
+.st .ic { margin-top: 1px; }
+.st-normal { color: var(--rk-normal-fg); } .st-careful { color: var(--rk-careful-fg); } .st-unknown { color: var(--rk-unknown-fg); }
+.kv { display: flex; justify-content: space-between; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--rk-hairline); font-size: 12px; }
+.kv:last-child { border-bottom: 0; }
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--rk-hairline); }
+.tile { padding: 10px 0 10px 12px; display: flex; flex-direction: column; }
+.tile:first-child { padding-left: 16px; }
+.tile-n { font-size: 20px; }
+.tile-l { font-size: 10px; color: var(--rk-ink-muted); }
+.tile.v-scam .tile-n, .vw.v-scam { color: var(--rk-scam-fg); }
+.tile.v-careful .tile-n, .vw.v-careful { color: var(--rk-careful-fg); }
+.tile.v-normal .tile-n, .vw.v-normal { color: var(--rk-normal-fg); }
+.tile.v-unknown .tile-n, .vw.v-unknown { color: var(--rk-unknown-fg); }
+.vw { display: inline-flex; align-items: center; gap: 4px; width: 92px; flex: none; }
+.row.ev, .fb-row { display: flex; align-items: center; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--rk-hairline); font-size: 12px; }
+.row.ev:last-child, .fb-row:last-child { border-bottom: 0; }
+.fb-row { padding: 6px 8px 6px 16px; flex-wrap: wrap; }
+.fb-cat { flex: 1; min-width: 80px; overflow-wrap: anywhere; }
+.fb-btns { display: flex; gap: 6px; }
+.pill { height: 36px; padding: 0 14px; border-radius: var(--rk-radius-pill); background: var(--rk-surface); color: var(--rk-ink); border: 1px solid var(--rk-hairline); font-family: var(--rk-font-ui); font-size: 14px; font-weight: 600; cursor: pointer; }
+.pill.yes { border-color: var(--rk-ink); }
+.pill:hover:not(:disabled) { background: var(--rk-paper); }
+.pill:focus-visible { outline: none; box-shadow: var(--rk-focus-ring); }
+.pill:disabled { opacity: .5; cursor: default; }
+.empty { padding: 14px 16px; font-size: 14px; color: var(--rk-ink-muted); }
+.fb-note { padding: 10px 16px; font-size: 12px; color: var(--rk-ink-muted); font-family: var(--rk-font-mono); border-top: 1px solid var(--rk-hairline); }
+.fb-error-msg { color: var(--rk-scam-fg); font-size: 12px; width: 100%; }
+@media (max-width: 1000px) {
+  .grid2, .grid3 { grid-template-columns: minmax(0, 1fr); }
+  .topbar, main { padding-left: 16px; padding-right: 16px; }
+  .topbar .where { margin-left: 0; width: 100%; }
+  .banner .grow { display: none; }
+  .stats { width: 100%; justify-content: flex-start; }
+  .stat { align-items: flex-start; }
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <span class="mark">$mark_svg</span>
+  <span class="wordmark">Rakshak</span>
+  <span class="muted">hub</span>
+  <span class="where">$hostname · private network only · refreshed $refreshed</span>
+</header>
+<main>
+  <div class="banner">
+    <div class="badge $banner_class">$banner_icon</div>
+    <div>
+      <h1>$banner_title</h1>
+      <span class="sub">$machine_line</span>
+    </div>
+    <div class="grow"></div>
+    <div class="stats">$p95_text$p95_media</div>
+  </div>
+
+  <div class="grid2">
+    <section class="card">
+      <h2>Models</h2>
+      <div class="scroll">
+        <div class="models-row row head"><span class="cell">model</span><span class="cell">role</span><span class="cell">runtime</span><span class="cell">status</span><span class="cell num">p50</span><span class="cell num">p95</span></div>
+        $models_rows
+      </div>
+    </section>
+    <section class="card">
+      <h2>Outbound (metadata only)</h2>
+      $outbound_rows
+    </section>
+  </div>
+
+  <div class="grid3">
+    $parent_cards
+    <section class="card" id="feedback">
+      <h2>Was this right?<span class="fb-count"><span id="fb-n">$feedback_count</span> waiting</span></h2>
+      <div id="fb-list">$feedback_rows</div>
+      <div class="fb-note">verdict · category · time only. Text stays in SQLite on this Mac; open it there if you must.</div>
+    </section>
+  </div>
+</main>
+<script>
+(function () {
+  var list = document.getElementById('fb-list');
+  var counter = document.getElementById('fb-n');
+  if (!list) return;
+  list.addEventListener('click', function (ev) {
+    var btn = ev.target.closest ? ev.target.closest('button[data-event]') : null;
+    if (!btn) return;
+    var row = btn.closest('.fb-row');
+    var buttons = row.querySelectorAll('button');
+    var old = row.querySelector('.fb-error-msg');
+    if (old) old.remove();
+    buttons.forEach(function (b) { b.disabled = true; });
+    fetch('/api/feedback/' + encodeURIComponent(btn.getAttribute('data-event')), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ correct: btn.getAttribute('data-correct') === 'true' })
+    }).then(function (r) {
+      if (!r.ok) throw new Error('http ' + r.status);
+      row.remove();
+      var left = list.querySelectorAll('.fb-row').length;
+      counter.textContent = String(left);
+      if (!left) {
+        var d = document.createElement('div');
+        d.className = 'empty';
+        d.textContent = 'Nothing waiting. Every check has an answer.';
+        list.appendChild(d);
+      }
+    }).catch(function () {
+      buttons.forEach(function (b) { b.disabled = false; });
+      var m = document.createElement('span');
+      m.className = 'fb-error-msg';
+      m.textContent = 'Could not save. Try again.';
+      row.appendChild(m);
+    });
+  });
+})();
+</script>
+</body>
+</html>
