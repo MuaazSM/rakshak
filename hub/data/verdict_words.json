@@ -1,1 +1,14 @@
-{}
+{
+  "en": {
+    "SCAM": ["scam"],
+    "SUSPICIOUS": ["careful", "suspicious"],
+    "SAFE": ["normal", "safe"],
+    "UNKNOWN": ["couldn't check", "could not check", "couldn’t check"]
+  },
+  "hi": {
+    "SCAM": ["स्कैम", "ठगी", "धोखा"],
+    "SUSPICIOUS": ["सावधान", "संदिग्ध"],
+    "SAFE": ["सामान्य", "सुरक्षित"],
+    "UNKNOWN": ["जाँच नहीं", "जांच नहीं"]
+  }
+}

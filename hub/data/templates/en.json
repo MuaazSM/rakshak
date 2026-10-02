@@ -1,0 +1,30 @@
+{
+  "SCAM": {
+    "headline": "This is a scam",
+    "default": "Don't tap any link, don't send any money and don't share any OTP. Call {son}.",
+    "kyc_account_block": "Real banks never ask you to update KYC through a link. Don't tap the link and don't send any money. Call {son}.",
+    "digital_arrest": "No police officer or court arrests anyone over a phone or video call. Don't send any money and don't stay on the call. Call {son}.",
+    "malicious_apk": "Real banks and offices never ask you to install an app from a link. Don't install it and don't open the link. Call {son}.",
+    "electricity_disconnect": "The electricity office never cuts power over a message like this. Don't tap the link and don't call the number. Call {son}.",
+    "courier_parcel": "Real couriers don't ask for payment through a link. Don't tap the link and don't pay anything. Call {son}.",
+    "family_emergency": "Money is being asked for in a hurry, which is how scammers work. Don't send anything until you have spoken to the person yourself. Call {son}.",
+    "task_job_offer": "Real jobs don't pay you for likes or small tasks, or ask you to pay first. Don't reply and don't send any money. Call {son}.",
+    "investment_tips": "Nobody can promise safe, quick profits. Don't send any money and don't join the group. Call {son}.",
+    "lottery_prize": "You cannot win a prize you never entered. Don't tap the link and don't pay any fee. Call {son}.",
+    "upi_collect_refund": "Approving a request sends money out of your account, it never brings money in. Don't approve it and don't enter your PIN. Call {son}.",
+    "otp_phishing": "Real banks never ask for your OTP or PIN. Don't share it with anyone. Call {son}."
+  },
+  "SUSPICIOUS": {
+    "headline": "Be careful",
+    "default": "This message is rushing you to act. Don't tap any link or reply, and check with {son} first."
+  },
+  "SAFE": {
+    "headline": "This looks like a normal message",
+    "default": "Nothing here asks for money or a link tap. If anything feels odd, check with {son}.",
+    "genuine_otp": "This is a real OTP from your bank. Never share an OTP with anyone."
+  },
+  "UNKNOWN": {
+    "headline": "Couldn't check right now",
+    "default": "The home computer is offline. Don't open any links, and call {son}."
+  }
+}
