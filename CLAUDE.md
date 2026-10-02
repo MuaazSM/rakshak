@@ -1,7 +1,7 @@
 # CLAUDE.md — working rules for agents in this repo
 
 ## What this is
-Rakshak: an on-device scam guardian for the owner's parents — **Mom on Android** (PWA + Share Target) and **Dad on iPhone** (iOS Shortcuts), explanations in **Hindi** with an **English** toggle. A phone a suspicious message, screenshot or voice note to a FastAPI + LangGraph hub on a MacBook M3 Pro; a fine-tuned Qwen3.5-4B (llama.cpp) decides SCAM / SUSPICIOUS / SAFE, a rules engine backs it up, and Gemma 4 E2B (Ollama) reads images/audio and explains the verdict in the parent's language. Built for the Hacktoberfest 2026 DEV Weekend Challenge ("Build for a Friend").
+Rakshak: an on-device scam guardian for the owner's parents — **Mom on Android** (PWA + Share Target) and **Dad on iPhone** (iOS Shortcuts), with explanations in **English** (Hindi exists only as a setting). A phone a suspicious message, screenshot or voice note to a FastAPI + LangGraph hub on a MacBook M3 Pro; a fine-tuned Qwen3.5-4B (llama.cpp) decides SCAM / SUSPICIOUS / SAFE, a rules engine backs it up, and Gemma 4 E2B (Ollama) reads images/audio and explains the verdict in the parent's language. Built for the Hacktoberfest 2026 DEV Weekend Challenge ("Build for a Friend").
 
 ## Source of truth
 1. **`docs/PRD.md`** — requirements, schemas, prompts, thresholds, targets. **Always wins.** (`docs/PRD.pdf` is an export of it.)
@@ -69,7 +69,7 @@ cd pwa && npm run build
 
 ## Conventions
 - All config via `hub/settings.py` (pydantic-settings reading `.env`) and `config/parents.json`. No hard-coded keys, paths, names or languages.
-- Every request carries `parent_id` (PRD FR-7); every language-dependent output takes `lang` ∈ {hi, en} (FR-8).
+- Every request carries `parent_id` (PRD FR-7). Explanation language comes from the parent profile, default `en` (FR-8); Hindi is a setting only — never add Hindi copy, toggles or badges to screens or docs.
 - Schemas in `hub/schemas.py` must match PRD §8 exactly (field names and enums).
 - Prompts live in `hub/prompts.py` copied verbatim from PRD Appendix A, with a comment `# canonical: PRD Appendix A.x`. Change the PRD first, then the copy.
 - Every pipeline node records its latency into `state["timings_ms"]` and gets a Sentry span.
@@ -82,7 +82,7 @@ cd pwa && npm run build
 - Never put text in `--haldi` on light backgrounds.
 - Fonts: Mukta (UI), Yatra One (wordmark only), JetBrains Mono (status numbers). Load via Google Fonts with `font-display: swap`.
 - Every verdict shows color + icon + word. Tap targets ≥ 56px; body ≥ 18px; Hindi line-height 1.6.
-- UI strings come from `pwa/src/i18n/{hi,en}.json`; never hard-code copy in components.
+- UI strings come from `pwa/src/i18n/en.json` (default) / `hi.json`; never hard-code copy in components.
 - Match the Claude Design frames; if a screen isn't designed, follow the nearest designed pattern and say so.
 - Brand files live in `brand/`; don't redraw or recolor the logo.
 
