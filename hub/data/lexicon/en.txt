@@ -1,0 +1,161 @@
+# English lexicon for hub/rules.py (PRD §7.3). Sections in [brackets]; one phrase per line.
+# Case-insensitive, whole-word; a trailing * matches any word ending (arrest* → arrested).
+
+[threat]
+arrest*
+digital arrest
+arrest warrant
+warrant
+fir
+police case
+case registered
+cbi
+ncb
+narcotics
+drugs
+customs
+money laundering
+court notice
+legal action
+jail
+account blocked
+account will be blocked
+will be blocked
+account suspended
+will be suspended
+account frozen
+account freeze
+sim will be blocked
+disconnect*
+power will be cut
+electricity will be cut
+penalty
+
+[urgency]
+urgent*
+immediately
+today
+tonight
+within 24 hours
+within 2 hours
+within 30 minutes
+last chance
+last date
+final notice
+final warning
+act now
+right now
+asap
+hurry
+expire*
+
+[payment]
+pay
+pay now
+payment
+make payment
+transfer*
+send money
+deposit*
+processing fee
+registration fee
+fee
+recharge
+scan the qr
+scan qr
+
+[bank]
+bank
+sbi
+hdfc
+icici
+axis bank
+kotak
+pnb
+bank of baroda
+kyc
+yono
+net banking
+debit card
+credit card
+
+[govt]
+police
+cbi
+ncb
+customs
+income tax
+trai
+rbi
+reserve bank
+uidai
+aadhaar
+government
+govt
+court
+cyber cell
+cyber crime
+electricity board
+electricity department
+msedcl
+mahavitaran
+epfo
+india post
+
+[otp]
+otp
+one time password
+pin
+mpin
+upi pin
+atm pin
+cvv
+password
+verification code
+security code
+otp code
+
+[share]
+share*
+send*
+tell*
+give
+forward*
+provide
+read out
+reply with
+
+[negation]
+do not
+don't
+don’t
+dont
+never
+not
+no need
+without
+
+[install]
+download*
+install*
+
+[pin]
+upi pin
+mpin
+pin
+
+[approve]
+approve*
+accept* the request
+accept* request
+collect request
+
+[receive]
+receive*
+to get money
+get your money
+get the money
+refund*
+cashback
+credited
+prize money

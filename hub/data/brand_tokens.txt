@@ -1,0 +1,38 @@
+# Brand tokens: a token inside a host that is NOT in official_domains.txt fires
+# lookalike_domain (PRD §7.3, e.g. sbi-yono-kyc.in). Matched against host labels split on
+# "." and "-": a label equal to the token, or starting with it.
+sbi
+yono
+hdfc
+icici
+axisbank
+kotak
+pnb
+baroda
+canara
+unionbank
+idbi
+indusind
+rbi
+npci
+bhim
+upi
+paytm
+phonepe
+gpay
+googlepay
+aadhaar
+aadhar
+uidai
+epfo
+incometax
+irctc
+indiapost
+ippb
+mahadiscom
+mahavitaran
+msedcl
+adani
+tatapower
+cybercrime
+customs

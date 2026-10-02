@@ -1,0 +1,26 @@
+# URL shorteners (PRD §7.3 shortener_link). Registrable domains, one per line.
+bit.ly
+bitly.com
+tinyurl.com
+cutt.ly
+is.gd
+v.gd
+t.ly
+rb.gy
+shorturl.at
+tiny.cc
+goo.gl
+ow.ly
+buff.ly
+rebrand.ly
+s.id
+t.co
+short.gy
+surl.li
+shorturl.asia
+u.to
+qr.ae
+bl.ink
+dub.sh
+shrtco.de
+tinu.be

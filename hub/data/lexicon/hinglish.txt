@@ -1,0 +1,111 @@
+# Romanized Hinglish lexicon for hub/rules.py (PRD §7.3). Same format as en.txt.
+
+[threat]
+giraftar*
+giraftaar*
+arrest ho*
+police case
+case darj
+jail
+account band
+band ho jayega
+band ho jaega
+block ho jayega
+block ho jaega
+bijli kat*
+bijli kaat*
+connection kat*
+connection kaat*
+sim band
+
+[urgency]
+turant
+jaldi
+abhi
+aaj hi
+aaj raat
+foran
+fauran
+
+[payment]
+pay karo
+pay kare*
+pay kar do
+paise bhej*
+paisa bhej*
+transfer karo
+transfer kar do
+jama karo
+jama kare*
+fees bhar*
+bill bhar*
+recharge karo
+gpay karo
+gpay kar do
+phonepe karo
+
+[bank]
+bank
+khata
+
+[govt]
+police
+sarkar*
+bijli vibhag
+bijli board
+thana
+
+[otp]
+otp
+pin
+
+[share]
+batao
+bata do
+batana
+bataiye
+bataye*
+bhejo
+bhej do
+bhej dijiye
+bhejiye
+share karo
+share kar do
+share kare*
+share kijiye
+de do
+dijiye
+
+[negation]
+mat
+nahi
+nahin
+na
+
+[install]
+download karo
+download kare*
+download kar lo
+install karo
+install kare*
+install kar lo
+app download
+
+[pin]
+pin
+upi pin
+
+[approve]
+approve karo
+approve kar do
+accept karo
+request accept
+
+[receive]
+paise milenge
+paisa milega
+paise aa jayenge
+refund milega
+receive karne
+paane ke liye
+milne ke liye

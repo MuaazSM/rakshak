@@ -1,0 +1,75 @@
+# Official domains for the look-alike check (PRD §7.3, hub/rules.py).
+# One registrable domain per line; a host matches if it equals the entry or is a subdomain.
+# "*.x" entries are registry-restricted zones (only vetted owners can register under them):
+# allowed, but never used for the edit-distance comparison.
+
+# Registry-restricted zones
+*.gov.in
+*.nic.in
+*.bank.in
+*.sbi
+
+# Regulators and payments
+rbi.org.in
+npci.org.in
+bhimupi.org.in
+
+# Banks
+onlinesbi.sbi
+sbi.co.in
+sbicard.com
+hdfcbank.com
+icicibank.com
+axisbank.com
+kotak.com
+pnbindia.in
+bankofbaroda.in
+unionbankofindia.co.in
+canarabank.com
+bankofindia.co.in
+centralbankofindia.co.in
+indianbank.in
+iob.in
+ucobank.com
+idbibank.in
+yesbank.in
+indusind.com
+federalbank.co.in
+idfcfirstbank.com
+aubank.in
+rblbank.com
+bandhanbank.com
+ippbonline.com
+
+# UPI apps and app stores
+phonepe.com
+paytm.com
+paytmbank.com
+google.com
+mobikwik.com
+cred.club
+amazon.in
+apple.com
+
+# Government portals (most are under *.gov.in above)
+mygov.in
+irctc.co.in
+digilocker.gov.in
+incometax.gov.in
+uidai.gov.in
+epfindia.gov.in
+cybercrime.gov.in
+sancharsaathi.gov.in
+passportindia.gov.in
+
+# India Post
+indiapost.gov.in
+
+# Electricity (Maharashtra)
+mahadiscom.in
+mahatransco.in
+mahagenco.in
+adanielectricity.com
+tatapower.com
+bestundertaking.com
+torrentpower.com
