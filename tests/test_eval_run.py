@@ -152,3 +152,50 @@ def test_all_lists_only_runnable_systems():
     assert run_eval.runnable_systems(None, False) == base
     assert run_eval.runnable_systems("tinker://x", False) == [*base, "tuned_tinker"]
     assert run_eval.runnable_systems(None, True) == [*base, "tuned_detector", "full_system"]
+
+
+def test_refuses_fewshot_overlap_before_any_request(tmp_path, monkeypatch):
+    import argparse
+    import asyncio
+
+    from eval import systems
+
+    called = []
+
+    class Leaky(systems.System):
+        name = "leaky"
+
+        def check_items(self, items):
+            raise ValueError("few-shot examples overlap the evaluated split: ['x']")
+
+        async def predict(self, item):
+            called.append(item)
+
+    monkeypatch.setattr(run_eval, "make_system", lambda name, args: Leaky())
+    args = argparse.Namespace(limit=None, strip_sender=False, checkpoint=None, out_dir=tmp_path)
+    with pytest.raises(EvalRefused, match="overlap"):
+        asyncio.run(run_eval.evaluate_system("leaky", args, tmp_path / "dev.jsonl", _items()))
+    assert not called
+
+
+def test_strip_sender_writes_nosender_file(tmp_path, monkeypatch):
+    monkeypatch.setattr(run_eval, "ROOT", tmp_path)
+    split = tmp_path / "dev.jsonl"
+    split.write_text("x\n")
+    items = _items()
+    preds = [Pred("SCAM"), Pred("SAFE")]
+    res = build_result("demo", "dev", split, items, preds, {"variant": "nosender"})
+    out = write_result(res, items, preds, tmp_path / "r", suffix="_nosender")
+    assert out.name == "demo_dev_nosender.json"
+    assert (tmp_path / "r" / "demo_dev_nosender.items.jsonl").exists()
+
+
+def test_detector_provenance_only_for_llama_systems(monkeypatch):
+    monkeypatch.setattr(run_eval, "served_models", lambda: ["models/rakshak-detector-v2-q4km.gguf"])
+    s = run_eval.get_settings()
+    monkeypatch.setattr(s, "detector_version", "rakshak-detector-v2-q4km")
+    assert run_eval.detector_provenance("rules_only") == {}
+    p = run_eval.detector_provenance("tuned_detector")
+    assert p["detector_version"] == "rakshak-detector-v2-q4km"
+    assert p["detector_version_matches_served"] is True
+    assert "detector_version" not in run_eval.detector_provenance("qwen_base_fewshot")

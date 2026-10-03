@@ -34,7 +34,10 @@ from eval.systems import (
     load_items,
     run_system,
     served_detector_is_tuned,
+    served_models,
+    strip_sender,
 )
+from hub.settings import get_settings
 
 ROOT = Path(__file__).resolve().parents[1]
 SPLITS = ROOT / "data" / "splits"
@@ -175,9 +178,11 @@ def build_result(
     }
 
 
-def write_result(result: dict, items: list[Item], preds: list[Pred], out_dir: Path) -> Path:
+def write_result(
+    result: dict, items: list[Item], preds: list[Pred], out_dir: Path, suffix: str = ""
+) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
-    stem = f"{result['system']}_{result['split'].removesuffix('_synthetic')}"
+    stem = f"{result['system']}_{result['split'].removesuffix('_synthetic')}{suffix}"
     path = out_dir / f"{stem}.json"
     path.write_text(json.dumps(result, indent=2, ensure_ascii=False) + "\n", "utf-8")
     golds = [gold_of(it) for it in items]
@@ -238,17 +243,42 @@ def make_system(name: str, args: argparse.Namespace):
     return SYSTEMS[name]()
 
 
+DETECTOR_SYSTEMS = ("qwen_base_fewshot", "tuned_detector", "full_system")
+
+
+def detector_provenance(name: str) -> dict:
+    """Which detector a llama-server-backed system scored (PRD §11.3 hygiene)."""
+    if name not in DETECTOR_SYSTEMS:
+        return {}
+    s = get_settings()
+    served = served_models()
+    out: dict = {"detector_url": s.detector_url, "served_models": served}
+    if name != "qwen_base_fewshot":
+        out["detector_version"] = s.detector_version
+        out["detector_version_matches_served"] = any(s.detector_version in m for m in served)
+    return out
+
+
 async def evaluate_system(name: str, args: argparse.Namespace, path: Path, items: list[Item]):
     system = make_system(name, args)
     try:
+        try:
+            system.check_items(items)
+        except ValueError as e:
+            raise EvalRefused(str(e)) from e
+        extra: dict = {"limit": args.limit, **detector_provenance(name)}
         preds = await run_system(system, items)
     finally:
         await system.aclose()
-    extra: dict = {"limit": args.limit}
     if name == "tuned_tinker":
         extra["checkpoint"] = args.checkpoint
+    if args.strip_sender:
+        extra["variant"] = "nosender"
+        extra["variant_note"] = "SENDER forced to unknown, RULE_SIGNALS recomputed with sender None"
     result = build_result(name, args.split, path, items, preds, extra)
-    out = write_result(result, items, preds, args.out_dir)
+    out = write_result(
+        result, items, preds, args.out_dir, suffix="_nosender" if args.strip_sender else ""
+    )
     return result, out
 
 
@@ -282,6 +312,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--checkpoint", default=None, help="Tinker sampler path for tuned_tinker")
     ap.add_argument("--out-dir", type=Path, default=RESULTS)
+    ap.add_argument(
+        "--strip-sender",
+        action="store_true",
+        help="evaluate every item with sender=None → {system}_{split}_nosender.json",
+    )
     ap.add_argument("--table", action="store_true", help="only print the table from results")
     ap.add_argument("--i-am-the-final-eval", dest="final_eval", action="store_true")
     args = ap.parse_args(argv)
@@ -295,6 +330,8 @@ def main(argv: list[str] | None = None) -> int:
         if not path.exists():
             raise EvalRefused(f"{path} does not exist yet")
         items = load_items(path, args.limit)
+        if args.strip_sender:
+            items = [strip_sender(it) for it in items]
         if args.all:
             names = runnable_systems(args.checkpoint, served_detector_is_tuned())
             print(f"--all → {','.join(names)}", flush=True)

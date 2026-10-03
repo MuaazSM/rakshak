@@ -230,3 +230,49 @@ def test_served_detector_is_tuned():
     assert systems.served_detector_is_tuned(client(["models/rakshak-detector-v1-q4km.gguf"]))
     down = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(503)))
     assert not systems.served_detector_is_tuned(down)
+
+
+def _shots(path, groups):
+    lines = []
+    for k, g in enumerate(groups):
+        msgs = row(f"f{k}", OTP_TEXT, SAFE_OUT)["messages"]
+        lines.append(
+            json.dumps({"id": f"f{k}", "seed_group": g, "kind": "x", "messages": msgs[1:]})
+        )
+    path.write_text("\n".join(lines) + "\n", "utf-8")
+
+
+def test_fewshot_guard_rejects_overlap_by_id_or_group(tmp_path):
+    shots = tmp_path / "fewshot.jsonl"
+    _shots(shots, [f"g{k}" for k in range(6)])
+    clean = [item_from_row(row("d1", OTP_TEXT, SAFE_OUT, seed_group="other"))]
+    systems.check_fewshot_disjoint(shots, clean)
+    same_id = [item_from_row(row("f2", OTP_TEXT, SAFE_OUT, seed_group="other"))]
+    same_group = [item_from_row(row("d2", OTP_TEXT, SAFE_OUT, seed_group="g4"))]
+    for items in (same_id, same_group):
+        with pytest.raises(ValueError, match="overlap"):
+            systems.check_fewshot_disjoint(shots, items)
+
+
+def test_fewshot_guard_requires_seed_groups(tmp_path):
+    shots = tmp_path / "fewshot.jsonl"
+    _write_fewshot(shots)  # old format, no seed_group
+    with pytest.raises(ValueError, match="seed_group"):
+        systems.check_fewshot_disjoint(shots, [])
+    sys_ = QwenBaseFewShot(client=httpx.AsyncClient(), fewshot_path=shots)
+    with pytest.raises(ValueError):
+        sys_.check_items([])
+
+
+def test_strip_sender_renders_unknown_and_recomputes_signals():
+    text = "Your SBI KYC is pending, account blocked today. Call now"
+    it = item_from_row(
+        row("s", text, SCAM_OUT, sender="+919812345678", signals=["unregistered_sender"])
+    )
+    out = systems.strip_sender(it)
+    user = out.prompt_messages[1]["content"]
+    assert user.splitlines()[1] == "SENDER: unknown (unknown)"
+    assert user == user_message("sms", None, out.rule_signals, text)
+    assert "unregistered_sender" not in out.rule_signals
+    assert out.sender is None and out.text == it.text and out.gold == it.gold
+    assert out.messages[2] == it.messages[2] and it.sender == "+919812345678"  # original intact

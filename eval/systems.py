@@ -20,7 +20,7 @@ import asyncio
 import json
 import re
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import get_args
 
@@ -101,6 +101,18 @@ def load_items(path: Path, limit: int | None = None) -> list[Item]:
     return items[:limit] if limit else items
 
 
+def strip_sender(item: Item) -> Item:
+    """The item as if it arrived without a sender (runtime text shares): SENDER renders as
+    `unknown (unknown)` and RULE_SIGNALS are recomputed with sender None (PRD §8.2, §7.3)."""
+    from hub.detector import user_message
+    from hub.rules import rule_signals
+
+    signals = rule_signals(item.text, None, item.channel)
+    user = user_message(item.channel, None, signals, item.text)
+    messages = [{**m, "content": user} if m["role"] == "user" else m for m in item.messages]
+    return replace(item, messages=messages, sender=None, rule_signals=signals)
+
+
 def gold_of(item: Item) -> Gold:
     g = item.gold
     return Gold(
@@ -173,6 +185,10 @@ class System:
         raise NotImplementedError
 
     async def aclose(self) -> None:
+        return None
+
+    def check_items(self, items: list["Item"]) -> None:
+        """Raise ValueError if this system must not be evaluated on these items."""
         return None
 
     async def timed(self, item: Item) -> Pred:
@@ -264,14 +280,31 @@ def load_fewshot(path: Path = FEWSHOT_PATH) -> list[dict]:
     return turns
 
 
+def check_fewshot_disjoint(path: Path, items: list[Item]) -> None:
+    """Refuse when a few-shot example (by id or seed group) is in the evaluated split, or when
+    the few-shot file predates seed-group recording (rebuild with --build-fewshot)."""
+    shots = [json.loads(x) for x in path.read_text("utf-8").splitlines() if x.strip()]
+    if any(not s.get("seed_group") for s in shots):
+        raise ValueError(f"{path}: few-shot lines lack seed_group; rebuild from train")
+    ids = {it.id for it in items}
+    groups = {it.meta.get("seed_group") for it in items}
+    leaked = sorted(s["id"] for s in shots if s["id"] in ids or s["seed_group"] in groups)
+    if leaked:
+        raise ValueError(f"few-shot examples overlap the evaluated split: {leaked}")
+
+
 class QwenBaseFewShot(System):
     """Appendix A.4: A.1 + 6 fixed train examples, base Qwen3.5-4B on llama-server."""
 
     name = "qwen_base_fewshot"
 
     def __init__(self, client: httpx.AsyncClient | None = None, fewshot_path: Path = FEWSHOT_PATH):
+        self.fewshot_path = fewshot_path
         self.shots = load_fewshot(fewshot_path)
         self.client = client or httpx.AsyncClient(timeout=TIMEOUT_S)
+
+    def check_items(self, items: list[Item]) -> None:
+        check_fewshot_disjoint(self.fewshot_path, items)
 
     async def predict(self, item: Item) -> Pred:
         system, user = item.prompt_messages
@@ -426,16 +459,20 @@ class FullSystem(System):
         self._tmp.cleanup()
 
 
-def served_detector_is_tuned(client: httpx.Client | None = None) -> bool:
-    """True if llama-server at DETECTOR_URL serves a rakshak-detector GGUF (not the base)."""
+def served_models(client: httpx.Client | None = None) -> list[str]:
+    """Model ids llama-server at DETECTOR_URL reports ([] if unreachable)."""
     url = f"{get_settings().detector_url.rstrip('/')}/models"
     try:
         r = (client or httpx).get(url, timeout=5)
         r.raise_for_status()
-        ids = [str(m.get("id", "")) for m in r.json().get("data", [])]
-    except (httpx.HTTPError, ValueError):
-        return False
-    return any("rakshak-detector" in i for i in ids)
+        return [str(m.get("id", "")) for m in r.json().get("data", [])]
+    except (httpx.HTTPError, ValueError, AttributeError):
+        return []
+
+
+def served_detector_is_tuned(client: httpx.Client | None = None) -> bool:
+    """True if llama-server at DETECTOR_URL serves a rakshak-detector GGUF (not the base)."""
+    return any("rakshak-detector" in i for i in served_models(client))
 
 
 SYSTEMS = {

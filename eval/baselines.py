@@ -8,7 +8,7 @@ negatives, 1 suspicious, 1 safe personal. Choice is deterministic (fixed seed ov
 candidates); clean (non-obfuscated), short items are preferred, the two scams differ in
 category (and language when possible), and the hard negatives are one `genuine_otp` and one
 `transaction_alert` when both exist. Items are interleaved so no class sits last. Each line is
-`{"id", "kind", "messages": [user, assistant]}`; prints ids and kinds only.
+`{"id", "seed_group", "kind", "messages": [user, assistant]}`; prints ids and kinds only.
 """
 
 import argparse
@@ -114,6 +114,7 @@ def fewshot_lines(selected: list[tuple[str, Item]]) -> list[dict]:
     return [
         {
             "id": it.id,
+            "seed_group": it.meta.get("seed_group"),
             "kind": kind,
             "messages": [m for m in it.messages if m["role"] in ("user", "assistant")],
         }

@@ -23,7 +23,7 @@ def test_summary_per_run_epoch_and_suspicious_groups(tmp_path):
                 "run_id": run.name,
                 "status": "done",
                 "hyperparams": {"lr": 1e-4, "epochs": 1},
-                "data": {"dev": {"sha256": "d"}, "train": {"sha256": "t"}},
+                "data": {"dev": {"sha256": "d", "n": 3}, "train": {"sha256": "t"}},
             }
         )
     )
@@ -46,9 +46,12 @@ def test_summary_per_run_epoch_and_suspicious_groups(tmp_path):
         ],
     )
     (tmp_path / "runs" / "20261003-000000-full-x-crashed").mkdir()
-    s = error_analysis.build(tmp_path / "runs", "*-full-*", dev)
+    s = error_analysis.build(tmp_path / "runs", ["*-full-*"], dev)
     assert s["provisional"] is True and s["split"] == "dev_synthetic"
-    [r] = s["runs"]
+    [g] = s["dev_groups"]
+    assert g["dev_sha256"] == "d" and g["is_current_dev"] is False and g["n_dev"] == 3
+    assert g["best"]["run_id"] == run.name and g["best"]["epoch"] == 1
+    [r] = g["runs"]
     assert r["best_epoch"] == 1 and r["lr"] == 1e-4
     [e] = r["epochs"]
     assert e["macro_f1"] == 0.5
@@ -57,3 +60,10 @@ def test_summary_per_run_epoch_and_suspicious_groups(tmp_path):
 
 def test_refuses_test_split(tmp_path):
     assert error_analysis.main(["--dev", str(tmp_path / "test.jsonl")]) == 2
+
+
+def test_group_from_id():
+    assert error_analysis.group_from_id("syn-seed-043-s0-v1") == "seed-043"
+    assert error_analysis.group_from_id("syn-calls-c9-3") == "calls-c9"
+    assert error_analysis.group_from_id("syn-links-genuine_otp-0-0") == "links-genuine_otp-0"
+    assert error_analysis.group_from_id("real-1") == "?"
