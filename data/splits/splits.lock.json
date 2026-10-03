@@ -1,0 +1,118 @@
+{
+  "train": {
+    "path": "train.jsonl",
+    "sha256": "e60e079831742a92e4c9237ff3559fb61d7077a2a32f11130f75edc70cc10877",
+    "n": 680,
+    "counts": {
+      "verdict": {
+        "SAFE": 209,
+        "SCAM": 425,
+        "SUSPICIOUS": 46
+      },
+      "category": {
+        "courier_parcel": 34,
+        "delivery_update": 59,
+        "digital_arrest": 51,
+        "electricity_disconnect": 51,
+        "family_emergency": 34,
+        "genuine_otp": 33,
+        "govt_genuine": 29,
+        "investment_tips": 29,
+        "kyc_account_block": 42,
+        "legit_promo": 20,
+        "lottery_prize": 32,
+        "malicious_apk": 32,
+        "other_scam": 76,
+        "otp_phishing": 29,
+        "personal": 17,
+        "task_job_offer": 30,
+        "transaction_alert": 51,
+        "upi_collect_refund": 31
+      },
+      "language": {
+        "en": 230,
+        "hi": 187,
+        "hinglish": 263
+      },
+      "source": {
+        "synthetic": 680
+      },
+      "obfuscated": {
+        "false": 414,
+        "true": 266
+      },
+      "hard_negative": {
+        "false": 580,
+        "true": 100
+      }
+    },
+    "built_at": "2026-10-03T00:24:19+00:00",
+    "git_sha": "178e7e8eb05a15b7d4d30d2c9dfaa5995fcee519"
+  },
+  "dev": {
+    "path": "dev.jsonl",
+    "sha256": "e210c0ec79de18a62881f9a31d5d04dbcc75710490ebb35e9bf2486130411c4f",
+    "n": 152,
+    "counts": {
+      "verdict": {
+        "SAFE": 48,
+        "SCAM": 96,
+        "SUSPICIOUS": 8
+      },
+      "category": {
+        "courier_parcel": 8,
+        "delivery_update": 8,
+        "digital_arrest": 8,
+        "electricity_disconnect": 8,
+        "family_emergency": 8,
+        "genuine_otp": 7,
+        "govt_genuine": 8,
+        "investment_tips": 8,
+        "kyc_account_block": 8,
+        "legit_promo": 8,
+        "lottery_prize": 8,
+        "malicious_apk": 8,
+        "other_scam": 16,
+        "otp_phishing": 8,
+        "personal": 8,
+        "task_job_offer": 8,
+        "transaction_alert": 9,
+        "upi_collect_refund": 8
+      },
+      "language": {
+        "en": 53,
+        "hi": 41,
+        "hinglish": 58
+      },
+      "source": {
+        "synthetic": 152
+      },
+      "obfuscated": {
+        "false": 103,
+        "true": 49
+      },
+      "hard_negative": {
+        "false": 135,
+        "true": 17
+      }
+    },
+    "built_at": "2026-10-03T00:24:19+00:00",
+    "git_sha": "178e7e8eb05a15b7d4d30d2c9dfaa5995fcee519"
+  },
+  "test": null,
+  "provisional": true,
+  "build": {
+    "build_seed": 20261003,
+    "generator": "gemma4:e2b via Ollama (open-weight only, PRD FR-31)",
+    "seeds": 60,
+    "rule_signals": "hub.rules.rule_signals",
+    "rule_signal_dropout_train": 0.2,
+    "minhash": "char 5-grams, Jaccard >= 0.8",
+    "invalid_dropped": 0,
+    "pool": 1032,
+    "after_leakage": 1032,
+    "train_dup_removed": 15,
+    "dev_groups": 19,
+    "discarded_dev_group_items": 185
+  }
+}
