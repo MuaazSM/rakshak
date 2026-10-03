@@ -27,7 +27,14 @@ from pathlib import Path
 
 from eval.bootstrap import headline_cis
 from eval.metrics import Gold, Pred, compute
-from eval.systems import SYSTEMS, Item, gold_of, load_items, run_system
+from eval.systems import (
+    SYSTEMS,
+    Item,
+    gold_of,
+    load_items,
+    run_system,
+    served_detector_is_tuned,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 SPLITS = ROOT / "data" / "splits"
@@ -239,6 +246,21 @@ async def evaluate_system(name: str, args: argparse.Namespace, path: Path, items
     return result, out
 
 
+BASELINES = ("rules_only", "gemma_zeroshot", "qwen_base_fewshot")
+
+
+def runnable_systems(checkpoint: str | None, detector_tuned: bool) -> list[str]:
+    """`--all`: the baselines, tuned_tinker when a checkpoint is given, and tuned_detector +
+    full_system only once llama-server serves a tuned rakshak-detector GGUF (otherwise they
+    would silently measure the base model)."""
+    names = list(BASELINES)
+    if checkpoint:
+        names.append("tuned_tinker")
+    if detector_tuned:
+        names += ["tuned_detector", "full_system"]
+    return names
+
+
 def load_existing(out_dir: Path, split: str) -> list[dict]:
     files = sorted(out_dir.glob(f"*_{split}.json"))
     return [json.loads(f.read_text("utf-8")) for f in files]
@@ -247,6 +269,9 @@ def load_existing(out_dir: Path, split: str) -> list[dict]:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--systems", default="rules_only,gemma_zeroshot,qwen_base_fewshot")
+    ap.add_argument(
+        "--all", action="store_true", help="every runnable system (see runnable_systems)"
+    )
     ap.add_argument("--split", default="dev")
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--checkpoint", default=None, help="Tinker sampler path for tuned_tinker")
@@ -264,8 +289,13 @@ def main(argv: list[str] | None = None) -> int:
         if not path.exists():
             raise EvalRefused(f"{path} does not exist yet")
         items = load_items(path, args.limit)
+        if args.all:
+            names = runnable_systems(args.checkpoint, served_detector_is_tuned())
+            print(f"--all → {','.join(names)}", flush=True)
+        else:
+            names = [s.strip() for s in args.systems.split(",") if s.strip()]
         results = []
-        for name in [s.strip() for s in args.systems.split(",") if s.strip()]:
+        for name in names:
             result, out = asyncio.run(evaluate_system(name, args, path, items))
             m = result["metrics"]
             print(

@@ -10,7 +10,7 @@ Every adapter turns one split item into an `eval.metrics.Pred`:
     tuned_tinker       Tinker sampler for a sampler checkpoint (greedy, renderer
                        qwen3_5_disable_thinking); also used per epoch by train_tinker
     tuned_detector     llama-server via hub.detector.detect (retry + logprob p_scam)
-    full_system        in-process hub check — not wired yet (raises NotImplementedError)
+    full_system        hub.graph.run_check in-process (parent "mom"; ntfy off, temp DB)
 
 All model inputs are the split file's own §8.2 user message, so eval sees exactly what training
 saw. Nothing here logs message text; errors are reported by exception type only.
@@ -372,13 +372,70 @@ class TunedTinker(System):
 
 
 class FullSystem(System):
+    """The whole hub graph in-process (hub.graph.run_check) as parent "mom".
+
+    Eval must never alert anyone or touch the real DB: while this adapter is open, the cached
+    settings get `ntfy_topic=None` and a throwaway `db_path`, and `hub.alerts.notify_scam` is
+    replaced by a no-op. `aclose` restores all three. Red flags are the post-filter flags the
+    parent would see (model + rule), so grounding is ~1 by construction.
+    """
+
     name = "full_system"
+    parent_id = "mom"
 
     def __init__(self):
-        # TODO(full_system): wire the in-process hub check (hub.graph) once it exposes an async
-        # entry point taking (parent_id, channel, sender, text) and returning a Verdict dict;
-        # map Verdict.verdict/category/red_flags/p_scam onto Pred like TunedDetector does.
-        raise NotImplementedError("full_system: hub graph entry point not available yet")
+        import tempfile
+
+        from hub import alerts, graph
+        from hub.settings import get_parents
+
+        if self.parent_id not in get_parents():
+            raise NotImplementedError(f"full_system: parent {self.parent_id!r} not configured")
+        self._run_check = graph.run_check
+        self._alerts = alerts
+        self._orig_notify = alerts.notify_scam
+        self._settings = get_settings()
+        self._orig = {k: getattr(self._settings, k) for k in ("ntfy_topic", "db_path")}
+        self._tmp = tempfile.TemporaryDirectory(prefix="rakshak-eval-")
+
+        async def _no_alert(*_a, **_k) -> bool:
+            return False
+
+        alerts.notify_scam = _no_alert
+        self._settings.ntfy_topic = None
+        self._settings.db_path = Path(self._tmp.name) / "eval.db"
+        from hub import db
+
+        db.init_db()
+
+    async def predict(self, item: Item) -> Pred:
+        v = await self._run_check(
+            parent_id=self.parent_id, text=item.text, channel=item.channel, sender=item.sender
+        )
+        return Pred(
+            verdict=v.verdict,
+            category=v.category,
+            quotes=[f.quote for f in v.red_flags],
+            p_scam=v.p_scam,
+        )
+
+    async def aclose(self) -> None:
+        self._alerts.notify_scam = self._orig_notify
+        for k, val in self._orig.items():
+            setattr(self._settings, k, val)
+        self._tmp.cleanup()
+
+
+def served_detector_is_tuned(client: httpx.Client | None = None) -> bool:
+    """True if llama-server at DETECTOR_URL serves a rakshak-detector GGUF (not the base)."""
+    url = f"{get_settings().detector_url.rstrip('/')}/models"
+    try:
+        r = (client or httpx).get(url, timeout=5)
+        r.raise_for_status()
+        ids = [str(m.get("id", "")) for m in r.json().get("data", [])]
+    except (httpx.HTTPError, ValueError):
+        return False
+    return any("rakshak-detector" in i for i in ids)
 
 
 SYSTEMS = {

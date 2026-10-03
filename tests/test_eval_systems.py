@@ -151,11 +151,6 @@ def test_fewshot_file_must_have_six(tmp_path):
         systems.load_fewshot(shots)
 
 
-def test_full_system_not_wired_yet():
-    with pytest.raises(NotImplementedError):
-        systems.FullSystem()
-
-
 def test_run_system_keeps_order():
     items = [item_from_row(row(f"i{k}", OTP_TEXT, SAFE_OUT)) for k in range(5)]
 
@@ -166,3 +161,72 @@ def test_run_system_keeps_order():
 
     preds = asyncio.run(run_system(Echo(), items))
     assert [p.category for p in preds] == [it.id for it in items]
+
+
+def test_full_system_maps_verdict_and_never_alerts(monkeypatch, tmp_path):
+    from hub import alerts, graph, settings
+    from hub.schemas import RedFlag, Verdict
+
+    s = settings.get_settings()
+    monkeypatch.setattr(s, "ntfy_topic", "rakshak-test-topic")  # as if set in .env
+    orig_topic, orig_db = s.ntfy_topic, s.db_path
+    monkeypatch.setattr(settings, "get_parents", lambda: {"mom": object()})
+    calls = []
+
+    async def fake_run_check(**kw):
+        calls.append(kw)
+        assert settings.get_settings().ntfy_topic is None  # alerts off during eval
+        assert settings.get_settings().db_path != orig_db  # never the real DB
+        assert await alerts.notify_scam(None, "x", None) is False
+        return Verdict(
+            event_id="evt_1",
+            verdict="SCAM",
+            category="malicious_apk",
+            p_scam=0.9,
+            red_flags=[RedFlag(quote="app.apk", reason="apk_link", source="rule")],
+            explanation="",
+            language="en",
+            parent_id="mom",
+        )
+
+    monkeypatch.setattr(graph, "run_check", fake_run_check)
+    it = item_from_row(row("s", SCAM_TEXT, SCAM_OUT))
+    sys_ = systems.FullSystem()
+    [pred] = asyncio.run(run_system(sys_, [it]))
+    asyncio.run(sys_.aclose())
+    assert calls[0] == {
+        "parent_id": "mom",
+        "text": SCAM_TEXT,
+        "channel": "sms",
+        "sender": "VK-SBIUPD",
+    }
+    assert (pred.verdict, pred.category, pred.p_scam, pred.quotes) == (
+        "SCAM",
+        "malicious_apk",
+        0.9,
+        ["app.apk"],
+    )
+    assert (s.ntfy_topic, s.db_path) == (orig_topic, orig_db)  # restored
+    assert alerts.notify_scam.__name__ == "notify_scam"
+
+
+def test_full_system_requires_configured_parent(monkeypatch):
+    from hub import settings
+
+    monkeypatch.setattr(settings, "get_parents", lambda: {})
+    with pytest.raises(NotImplementedError):
+        systems.FullSystem()
+
+
+def test_served_detector_is_tuned():
+    def client(ids):
+        return httpx.Client(
+            transport=httpx.MockTransport(
+                lambda r: httpx.Response(200, json={"data": [{"id": i} for i in ids]})
+            )
+        )
+
+    assert not systems.served_detector_is_tuned(client(["models/base/qwen3.5-4b-q4km.gguf"]))
+    assert systems.served_detector_is_tuned(client(["models/rakshak-detector-v1-q4km.gguf"]))
+    down = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(503)))
+    assert not systems.served_detector_is_tuned(down)

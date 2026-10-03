@@ -145,3 +145,10 @@ def test_build_fewshot_writes_user_assistant_pairs(tmp_path):
     assert len(lines) == 6
     first = json.loads(out.read_text().splitlines()[0])
     assert [m["role"] for m in first["messages"]] == ["user", "assistant"]
+
+
+def test_all_lists_only_runnable_systems():
+    base = ["rules_only", "gemma_zeroshot", "qwen_base_fewshot"]
+    assert run_eval.runnable_systems(None, False) == base
+    assert run_eval.runnable_systems("tinker://x", False) == [*base, "tuned_tinker"]
+    assert run_eval.runnable_systems(None, True) == [*base, "tuned_detector", "full_system"]
