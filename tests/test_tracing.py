@@ -131,3 +131,66 @@ def test_end_to_end_payload_is_clean():
     data = txn["spans"][0]["data"]
     assert data["verdict"] == "SCAM" and data["p_scam"] == 0.9 and data["node"] == "detect"
     assert "text" not in data and "quote" not in data and "explanation" not in data
+
+
+def test_scrub_blanks_exception_and_logentry_text():
+    event = {
+        "exception": {
+            "values": [
+                {
+                    "type": "ValidationError",
+                    "module": "pydantic",
+                    "value": f"input_value='{CANARY}'",
+                    "stacktrace": {
+                        "frames": [
+                            {"function": "node", "lineno": 7, "vars": {"x": CANARY}},
+                        ]
+                    },
+                }
+            ]
+        },
+        "logentry": {"message": "bad %s", "formatted": f"bad {CANARY}", "params": [CANARY]},
+        "breadcrumbs": {"values": [{"type": "log", "message": CANARY, "category": "x"}]},
+    }
+    out = tracing.scrub(event)
+    assert CANARY not in repr(out)
+    (exc,) = out["exception"]["values"]
+    assert exc["type"] == "ValidationError" and exc["module"] == "pydantic" and exc["value"] == ""
+    assert exc["stacktrace"]["frames"] == [{"function": "node", "lineno": 7}]
+    assert out["logentry"] == {"formatted": ""}
+    assert out["breadcrumbs"]["values"] == [{"type": "log", "category": "x"}]
+
+
+def test_exception_and_log_text_never_reach_the_transport():
+    import logging
+
+    from hub.schemas import DetectorOutput
+
+    events = []
+    sentry_sdk.init(
+        dsn="http://public@localhost:9/1",
+        transport=_Capture(events),
+        traces_sample_rate=1.0,
+        before_send=tracing.scrub,
+        before_send_transaction=tracing.scrub,
+        before_breadcrumb=tracing.scrub,
+        include_local_variables=False,
+    )
+    log = logging.getLogger("canary-test")
+    try:
+        with pytest.raises(ValueError), tracing.check_transaction("mom", "sms"):
+            log.warning("checking %s", CANARY)  # breadcrumb
+            with tracing.node_span("detect"):
+                try:
+                    DetectorOutput.model_validate({"verdict": CANARY})
+                except ValueError as e:  # pydantic's message echoes the input
+                    assert CANARY in str(e)
+                    sentry_sdk.capture_exception(e)
+                    log.error("detector failed for %s", CANARY)  # logentry event
+                    raise
+    finally:
+        sentry_sdk.get_client().close()
+        sentry_sdk.get_global_scope().set_client(None)
+    assert events
+    assert CANARY not in repr(events)
+    assert any("exception" in e for e in events)

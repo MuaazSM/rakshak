@@ -37,9 +37,40 @@ ALLOWED_ATTRS = frozenset(
 _MAX_STR = 80
 
 
+# Dropped from stack frames: local variables can hold message text.
+_FRAME_KEYS = frozenset({"vars"})
+# Free-text fields that can echo input (e.g. a pydantic ValidationError includes the input):
+# blanked, not removed, so the event shape stays valid.
+_LOGENTRY_BLANK = ("formatted",)
+_LOGENTRY_DROP = ("params",)
+
+
 def scrub(event: Any, hint: Any = None) -> Any:
-    """Sentry before_send / before_send_transaction / before_breadcrumb hook."""
-    return _scrub(event)
+    """Sentry before_send / before_send_transaction / before_breadcrumb hook.
+
+    Removes the PRD §9.3 keys at any depth, then blanks the string fields that carry
+    formatted text: exception values, logentry formatted text, and (via the key list)
+    message / breadcrumb message. Exception type/module and frame function/line stay.
+    """
+    out = _scrub(event)
+    if isinstance(out, dict):
+        _blank_text_fields(out)
+    return out
+
+
+def _blank_text_fields(event: dict) -> None:
+    exc = event.get("exception")
+    if isinstance(exc, dict):
+        for item in exc.get("values") or []:
+            if isinstance(item, dict) and "value" in item:
+                item["value"] = ""
+    log_entry = event.get("logentry")
+    if isinstance(log_entry, dict):
+        for k in _LOGENTRY_BLANK:
+            if k in log_entry:
+                log_entry[k] = ""
+        for k in _LOGENTRY_DROP:
+            log_entry.pop(k, None)
 
 
 def _scrub(obj: Any) -> Any:
@@ -47,7 +78,7 @@ def _scrub(obj: Any) -> Any:
         return {
             k: _scrub(v)
             for k, v in obj.items()
-            if not (isinstance(k, str) and k.lower() in FORBIDDEN_KEYS)
+            if not (isinstance(k, str) and (k.lower() in FORBIDDEN_KEYS or k in _FRAME_KEYS))
         }
     if isinstance(obj, (list, tuple)):
         return [_scrub(v) for v in obj]

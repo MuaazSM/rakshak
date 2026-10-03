@@ -171,3 +171,58 @@ def test_hindi_postcheck_and_digits():
     assert problems == []
     assert "foreign_number" in explainer.post_check("यह स्कैम है। ९८७६ पर फ़ोन करें।", "SCAM", "hi", "x")
     assert explainer.post_check("यह स्कैम है। १९३० पर फ़ोन न करें।", "SCAM", "hi", "call 1930") == []
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        "This is not a scam. Call Muaaz.",
+        "This isn't a scam, it looks fine.",
+        "This is no scam. Do not worry.",
+        "This looks like a normal message. It is a scam though. Call Muaaz.",  # other verdict
+    ],
+)
+def test_negated_or_contradicting_verdict_rejected_then_template(bad):
+    fake = Fake(bad, bad)
+    assert run(SCAM, fake) == explainer.template("SCAM", "kyc_account_block", "en", "Muaaz")
+    assert len(fake.bodies) == 2
+
+
+def test_negated_first_try_then_good_regeneration():
+    fake = Fake("This is not a scam. Call Muaaz.", GOOD)
+    assert run(SCAM, fake) == GOOD
+
+
+@pytest.mark.parametrize(
+    "ok",
+    [
+        "This is a scam. Do not click, call Muaaz.",
+        "This is a scam, not a drill. Call Muaaz.",
+        "Be careful. Do not reply, call Muaaz.",
+    ],
+)
+def test_legit_negations_elsewhere_pass(ok):
+    verdict = "SUSPICIOUS" if ok.startswith("Be careful") else "SCAM"
+    assert explainer.post_check(ok, verdict, "en", "x") == []
+
+
+def test_suspicious_must_not_say_scam_or_safe():
+    pc = explainer.post_check
+    assert "other_verdict_word" in pc("Be careful, this could be a scam.", "SUSPICIOUS", "en", "x")
+    assert "negated_verdict_word" in pc(
+        "This is not suspicious. Be careful.", "SUSPICIOUS", "en", "x"
+    )
+
+
+def test_hindi_negation_and_contradiction():
+    pc = explainer.post_check
+    assert "negated_verdict_word" in pc("यह स्कैम नहीं है।", "SCAM", "hi", "x")
+    assert "other_verdict_word" in pc("यह सामान्य मैसेज है। यह स्कैम है।", "SCAM", "hi", "x")
+    assert pc("यह स्कैम है। लिंक न खोलें।", "SCAM", "hi", "x") == []
+    assert pc("सावधान रहें, लिंक न खोलें।", "SUSPICIOUS", "hi", "x") == []
+
+
+def test_keep_alive_is_resident():
+    fake = Fake(GOOD)
+    run(SCAM, fake)
+    assert fake.bodies[0]["keep_alive"] == -1 == explainer.OLLAMA_KEEP_ALIVE

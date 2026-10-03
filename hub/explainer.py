@@ -25,11 +25,25 @@ GEMMA_VERDICTS = ("SCAM", "SUSPICIOUS")
 MAX_SENTENCES = 3
 MAX_WORDS = 60
 TIMEOUT_S = 60.0
+OLLAMA_KEEP_ALIVE = -1  # keep Gemma resident so it doesn't reload between checks
+NEGATION_WINDOW = 3  # words checked around a verdict word
 
 _SENTENCE_SPLIT = re.compile(r"[.!?।]+")
 _URL = re.compile(r"(?:https?://|www\.)\S+|\b[\w-]+(?:\.[\w-]+)*\.[a-z]{2,}(?:/\S*)?", re.I)
 _NUMBER = re.compile(r"\d+")
 _DEVANAGARI_DIGITS = str.maketrans("०१२३४५६७८९", "0123456789")
+_WORD_SPLIT = re.compile(r"[\s()\"“”]+")
+_CLAUSE_SPLIT = re.compile(r"[,;:—–]|\s-\s|\b(?:but|and|so)\b")
+_NEGATORS = {
+    "en": {"not", "no", "never", "cannot", "without"},
+    "hi": {"नहीं", "नही", "न", "ना", "मत"},
+}
+# Verdict words that must not appear in an explanation of this verdict (A.3: never change it).
+# SCAM may still say "be careful"; SUSPICIOUS may not say "scam".
+_FORBIDDEN_VERDICTS = {
+    "SCAM": ("SAFE", "UNKNOWN"),
+    "SUSPICIOUS": ("SCAM", "SAFE", "UNKNOWN"),
+}
 
 
 @lru_cache
@@ -57,13 +71,54 @@ def _numbers(text: str) -> set[str]:
     return set(_NUMBER.findall(text.translate(_DEVANAGARI_DIGITS)))
 
 
+def _tokens(text: str) -> list[str]:
+    return [t for t in _WORD_SPLIT.split(text) if t]
+
+
+def _is_negator(token: str, lang: str) -> bool:
+    return token in _NEGATORS.get(lang, _NEGATORS["en"]) or (lang != "hi" and token.endswith("n't"))
+
+
+def _negated(sentence: str, word: str, lang: str) -> bool:
+    """True if `word` occurs in `sentence` with a negator just before it (en) or just before
+    or after it (hi: "यह स्कैम नहीं है")."""
+    start = sentence.find(word)
+    while start != -1:
+        # a negator in another clause ("Do not reply, be careful") doesn't count
+        before = _tokens(_CLAUSE_SPLIT.split(sentence[:start])[-1])[-NEGATION_WINDOW:]
+        after = _tokens(_CLAUSE_SPLIT.split(sentence[start + len(word) :])[0])[:NEGATION_WINDOW]
+        near = before + after if lang == "hi" else before
+        if any(_is_negator(t, lang) for t in near):
+            return True
+        start = sentence.find(word, start + 1)
+    return False
+
+
+def verdict_word_problems(output: str, verdict: str, lang: str) -> list[str]:
+    """Own verdict word present and not negated; no other verdict's word (en/hi tables)."""
+    table = _verdict_words().get(lang) or _verdict_words()["en"]
+    low = output.lower().replace("’", "'")
+    own = [w.lower().replace("’", "'") for w in table.get(verdict, [])]
+    if not any(w in low for w in own):
+        return ["verdict_word_missing"]
+    problems = []
+    sentences = [x for x in _SENTENCE_SPLIT.split(low) if x.strip()]
+    if any(_negated(sen, w, lang) for sen in sentences for w in own):
+        problems.append("negated_verdict_word")
+    others = [
+        w.lower().replace("’", "'")
+        for v in _FORBIDDEN_VERDICTS.get(verdict, ())
+        for w in table.get(v, [])
+    ]
+    if any(w in low for w in others):
+        problems.append("other_verdict_word")
+    return problems
+
+
 def post_check(output: str, verdict: str, lang: str, input_text: str) -> list[str]:
     """PRD §7.5. Returns the list of failed checks (empty = pass)."""
     problems: list[str] = []
-    low = output.lower()
-    words = _verdict_words().get(lang) or _verdict_words()["en"]
-    if not any(w.lower() in low for w in words.get(verdict, [])):
-        problems.append("verdict_word_missing")
+    problems += verdict_word_problems(output, verdict, lang)
     inp = input_text.lower()
     if any(u.lower().rstrip(".,)") not in inp for u in _URL.findall(output)):
         problems.append("foreign_url")
@@ -107,7 +162,7 @@ async def _generate(
         "stream": False,
         "think": False,  # PRD §17: Gemma 4 thinks by default (12-14 s); off = 1.2-1.8 s
         "options": {"temperature": temperature, "seed": seed},
-        "keep_alive": "15m",
+        "keep_alive": OLLAMA_KEEP_ALIVE,
     }
     r = await client.post(f"{s.ollama_host}/api/chat", json=body, timeout=TIMEOUT_S)
     r.raise_for_status()

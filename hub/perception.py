@@ -25,6 +25,7 @@ from hub.settings import get_settings
 log = logging.getLogger(__name__)
 
 WHISPER_MODEL = "mlx-community/whisper-small-mlx"
+OLLAMA_KEEP_ALIVE = -1  # keep Gemma resident so it doesn't reload between checks
 GEMMA_IMAGE_TIMEOUT_S = 120.0
 GEMMA_AUDIO_TIMEOUT_S = 300.0
 FFMPEG_TIMEOUT_S = 60.0
@@ -106,7 +107,7 @@ async def _gemma_image(
         "stream": False,
         "think": False,
         "options": {"temperature": 0, "seed": 7},
-        "keep_alive": "15m",
+        "keep_alive": OLLAMA_KEEP_ALIVE,
     }
     r = await client.post(f"{s.ollama_host}/api/chat", json=body, timeout=GEMMA_IMAGE_TIMEOUT_S)
     r.raise_for_status()

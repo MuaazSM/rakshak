@@ -100,6 +100,7 @@ def test_gemma_image_request_and_parse(monkeypatch):
     assert (sender, text) == ("VK-SBIUPD", "KYC pending")
     (body,) = seen
     assert body["think"] is False and body["stream"] is False
+    assert body["keep_alive"] == -1 == perception.OLLAMA_KEEP_ALIVE
     msg = body["messages"][0]
     assert msg["content"].startswith("Transcribe the message in this screenshot")
     assert len(msg["images"]) == 1
