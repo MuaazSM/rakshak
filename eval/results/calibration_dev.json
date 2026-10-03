@@ -1,0 +1,75 @@
+{
+  "T_HIGH": 0.497688,
+  "T_LOW": 0.5,
+  "split": "dev_synthetic",
+  "provisional": true,
+  "n_dev": 159,
+  "detector_version": "rakshak-detector-v2-q4km",
+  "created_at": "2026-10-03T02:01:48+00:00",
+  "targets": {
+    "max_fpr_genuine_scam": 0.03,
+    "min_scam_recall": 0.98
+  },
+  "t_high_search": {
+    "value": 0.49768805633704977,
+    "feasible": true,
+    "edge": 3.4246610645168095e-05,
+    "interval": [
+      1.702045022278493e-05,
+      0.9953590922238768
+    ],
+    "fpr_genuine_scam_at_edge": 0.01818181818181818
+  },
+  "t_low_search": {
+    "value": 0.5,
+    "feasible": true,
+    "edge": 0.9967009167265216,
+    "interval": [
+      0.8121504929549042,
+      0.9967009167265216
+    ],
+    "recall_scam_or_suspicious_at_edge": 0.9807692307692307,
+    "capped_from": 0.9044257048407129,
+    "note": "capped at 0.5: never SAFE when P(SAFE) < 0.5"
+  },
+  "metrics_at_thresholds": {
+    "n": 159,
+    "scam_recall": 1.0,
+    "scam_recall_strict": 1.0,
+    "fpr_genuine": 0.01818181818181818,
+    "fpr_hard_negative": 0.0,
+    "macro_f1": 0.97733405288721,
+    "unknown_rate": 0.0,
+    "per_class_f1": {
+      "SCAM": 1.0,
+      "SUSPICIOUS": 0.9411764705882353,
+      "SAFE": 0.9908256880733946
+    },
+    "confusion_gold_x_pred": {
+      "SAFE": {
+        "SAFE": 54,
+        "SUSPICIOUS": 1
+      },
+      "SCAM": {
+        "SCAM": 96
+      },
+      "SUSPICIOUS": {
+        "SUSPICIOUS": 8
+      }
+    },
+    "suspicious_flagged_rate": 1.0,
+    "suspicious_exact_rate": 1.0
+  },
+  "detector_status": {
+    "ok": 159,
+    "invalid": 0,
+    "unavailable": 0
+  },
+  "limit": null,
+  "data": {
+    "path": "data/splits/dev.jsonl",
+    "sha256": "e0464582477c81bf5a7fc59f694dc4356ef53f218b79bbccff9c9e6ba6e322b2"
+  },
+  "cache": "eval/results/calibrate_dev.items.jsonl",
+  "git_sha": "d15e0d1bf626203979d7e74c8163b35edd39bb4c"
+}

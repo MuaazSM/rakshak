@@ -1,0 +1,76 @@
+{
+  "run_id": "20261003-002612-smoke",
+  "checkpoint": "tinker://0930b8c0-0d08-58dd-ad8a-c7ca744ed258:train:0/sampler_weights/20261003-002612-smoke-e1",
+  "version": 0,
+  "detector_version": "rakshak-detector-v0-q4km",
+  "base": "models/base/qwen3.5-4b",
+  "unembed": "untied",
+  "gguf": "models/rakshak-detector-v0-q4km.gguf",
+  "gguf_sha256": "21bce4d8e5337d01105f34c9b924db8e3cc59ce2def4986a86ba48b0f103a3ca",
+  "sizes": {
+    "adapter_bytes": 291704198,
+    "merged_bytes": 10614205920,
+    "f16_bytes": 9937018304,
+    "gguf_bytes": 3141027264
+  },
+  "kept_intermediate": false,
+  "steps": [
+    {
+      "step": "preflight",
+      "ok": true,
+      "sec": 0.1
+    },
+    {
+      "step": "download adapter",
+      "ok": true,
+      "sec": 41.9
+    },
+    {
+      "step": "inspect adapter vs base",
+      "ok": true,
+      "sec": 0.0
+    },
+    {
+      "step": "strip unembed LoRA",
+      "ok": true,
+      "sec": 0.4
+    },
+    {
+      "step": "merge (bf16, shard)",
+      "ok": true,
+      "sec": 42.5
+    },
+    {
+      "step": "write untied lm_head",
+      "ok": true,
+      "sec": 7.0
+    },
+    {
+      "step": "convert f16 GGUF",
+      "ok": true,
+      "sec": 55.3
+    },
+    {
+      "step": "quantize Q4_K_M",
+      "ok": true,
+      "sec": 40.8
+    },
+    {
+      "step": "sha256",
+      "ok": true,
+      "sec": 1.7
+    },
+    {
+      "step": "cleanup",
+      "ok": true,
+      "sec": 2.0
+    }
+  ],
+  "total_sec": 191.7,
+  "started": "2026-10-03T00:35:46+00:00",
+  "finished": "2026-10-03T00:38:58+00:00",
+  "tools": {
+    "llama_cpp": "/Users/muaazshaikh/src/llama.cpp",
+    "quantize": "/opt/homebrew/bin/llama-quantize"
+  }
+}

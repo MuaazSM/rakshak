@@ -1,0 +1,180 @@
+{
+  "provisional": true,
+  "split": "dev_synthetic",
+  "epochs": [
+    {
+      "epoch": 1,
+      "checkpoint": "tinker://a1d611ce-6f29-5dd9-9878-b8e8d44bd4ab:train:0/sampler_weights/20261003-004911-full-lr05x-e1",
+      "train_loss_first": 0.958385705947876,
+      "train_loss_last": 0.09728741645812988,
+      "train_loss_mean": 0.22530856598978458,
+      "dev": {
+        "macro_f1": 0.9459462899325443,
+        "scam_recall": 1.0,
+        "scam_recall_strict": 1.0,
+        "fpr_genuine": 0.03636363636363636,
+        "fpr_hard_negative": 0.0,
+        "category_accuracy": 0.8333333333333334,
+        "span_f1": 0.6341656757827981,
+        "grounding_rate": 0.9858657243816255,
+        "json_validity": 0.9698795180722891,
+        "json_parse_rate": 1.0,
+        "unknown_rate": 0.0,
+        "errors": 0
+      },
+      "dev_ci95": {
+        "scam_recall": [
+          1.0,
+          1.0
+        ],
+        "scam_recall_strict": [
+          1.0,
+          1.0
+        ],
+        "fpr_genuine": [
+          0.0,
+          0.1
+        ],
+        "fpr_hard_negative": [
+          0.0,
+          0.0
+        ],
+        "macro_f1": [
+          0.8828864629373934,
+          0.9885079019540237
+        ],
+        "category_accuracy": [
+          0.7557388293702639,
+          0.9072164948453608
+        ],
+        "span_f1": [
+          0.5926444673655228,
+          0.6699846860643185
+        ]
+      },
+      "dev_eval_sec": 56.0
+    },
+    {
+      "epoch": 2,
+      "checkpoint": "tinker://a1d611ce-6f29-5dd9-9878-b8e8d44bd4ab:train:0/sampler_weights/20261003-004911-full-lr05x-e2",
+      "train_loss_first": 0.07688667625188828,
+      "train_loss_last": 0.05243867635726929,
+      "train_loss_mean": 0.05768535966458528,
+      "dev": {
+        "macro_f1": 0.954113405440839,
+        "scam_recall": 1.0,
+        "scam_recall_strict": 1.0,
+        "fpr_genuine": 0.0,
+        "fpr_hard_negative": 0.0,
+        "category_accuracy": 0.8020833333333334,
+        "span_f1": 0.6621567847194588,
+        "grounding_rate": 0.9929577464788732,
+        "json_validity": 0.9578313253012049,
+        "json_parse_rate": 1.0,
+        "unknown_rate": 0.0,
+        "errors": 0
+      },
+      "dev_ci95": {
+        "scam_recall": [
+          1.0,
+          1.0
+        ],
+        "scam_recall_strict": [
+          1.0,
+          1.0
+        ],
+        "fpr_genuine": [
+          0.0,
+          0.0
+        ],
+        "fpr_hard_negative": [
+          0.0,
+          0.0
+        ],
+        "macro_f1": [
+          0.8897885824396621,
+          1.0
+        ],
+        "category_accuracy": [
+          0.7187160326086957,
+          0.8846264367816091
+        ],
+        "span_f1": [
+          0.6209940624362312,
+          0.7025143923071329
+        ]
+      },
+      "dev_eval_sec": 61.9
+    },
+    {
+      "epoch": 3,
+      "checkpoint": "tinker://a1d611ce-6f29-5dd9-9878-b8e8d44bd4ab:train:0/sampler_weights/20261003-004911-full-lr05x-e3",
+      "train_loss_first": 0.044791288673877716,
+      "train_loss_last": 0.03278835117816925,
+      "train_loss_mean": 0.034720197319984436,
+      "dev": {
+        "macro_f1": 0.8786077046946611,
+        "scam_recall": 1.0,
+        "scam_recall_strict": 1.0,
+        "fpr_genuine": 0.0,
+        "fpr_hard_negative": 0.0,
+        "category_accuracy": 0.8229166666666666,
+        "span_f1": 0.6671692423671315,
+        "grounding_rate": 0.9928571428571429,
+        "json_validity": 0.9819277108433735,
+        "json_parse_rate": 1.0,
+        "unknown_rate": 0.0,
+        "errors": 0
+      },
+      "dev_ci95": {
+        "scam_recall": [
+          1.0,
+          1.0
+        ],
+        "scam_recall_strict": [
+          1.0,
+          1.0
+        ],
+        "fpr_genuine": [
+          0.0,
+          0.0
+        ],
+        "fpr_hard_negative": [
+          0.0,
+          0.0
+        ],
+        "macro_f1": [
+          0.7838781907747425,
+          0.9575021006772118
+        ],
+        "category_accuracy": [
+          0.7443900343642612,
+          0.8988792418567699
+        ],
+        "span_f1": [
+          0.6249408882903329,
+          0.7056764083732573
+        ]
+      },
+      "dev_eval_sec": 54.4
+    }
+  ],
+  "best": {
+    "epoch": 2,
+    "checkpoint": "tinker://a1d611ce-6f29-5dd9-9878-b8e8d44bd4ab:train:0/sampler_weights/20261003-004911-full-lr05x-e2",
+    "dev": {
+      "macro_f1": 0.954113405440839,
+      "scam_recall": 1.0,
+      "scam_recall_strict": 1.0,
+      "fpr_genuine": 0.0,
+      "fpr_hard_negative": 0.0,
+      "category_accuracy": 0.8020833333333334,
+      "span_f1": 0.6621567847194588,
+      "grounding_rate": 0.9929577464788732,
+      "json_validity": 0.9578313253012049,
+      "json_parse_rate": 1.0,
+      "unknown_rate": 0.0,
+      "errors": 0
+    }
+  }
+}

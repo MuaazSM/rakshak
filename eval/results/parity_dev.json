@@ -1,0 +1,54 @@
+{
+  "provisional": true,
+  "split": "dev_synthetic",
+  "checkpoint": "tinker://b26d0ce6-c0a2-53b3-8c38-d456cd64d979:train:0/sampler_weights/20261003-012251-v2-lr1x-e3",
+  "tinker_source": "cached:training/runs/20261003-012251-v2-lr1x/tuned_tinker_e3_dev.items.jsonl",
+  "detector_url": "http://127.0.0.1:8081/v1",
+  "detector_version": "rakshak-detector-v2-q4km",
+  "limit": null,
+  "data": {
+    "path": "data/splits/dev.jsonl",
+    "sha256": "e0464582477c81bf5a7fc59f694dc4356ef53f218b79bbccff9c9e6ba6e322b2"
+  },
+  "git_sha": "d15e0d1bf626203979d7e74c8163b35edd39bb4c",
+  "timestamp": "2026-10-03T01:42:35+00:00",
+  "n": 159,
+  "verdict_agreement": 0.9937106918238994,
+  "verdict_agreement_no_errors": 0.9937106918238994,
+  "category_agreement_on_agreed_scams": 0.9519230769230769,
+  "json_validity_tinker": 0.9874213836477987,
+  "json_validity_gguf": 0.9874213836477987,
+  "errors_tinker": 0,
+  "errors_gguf": 0,
+  "confusion_tinker_x_gguf": {
+    "SCAM": {
+      "SCAM": 96,
+      "SUSPICIOUS": 0,
+      "SAFE": 0,
+      "UNKNOWN": 0
+    },
+    "SUSPICIOUS": {
+      "SCAM": 0,
+      "SUSPICIOUS": 8,
+      "SAFE": 0,
+      "UNKNOWN": 0
+    },
+    "SAFE": {
+      "SCAM": 0,
+      "SUSPICIOUS": 1,
+      "SAFE": 54,
+      "UNKNOWN": 0
+    },
+    "UNKNOWN": {
+      "SCAM": 0,
+      "SUSPICIOUS": 0,
+      "SAFE": 0,
+      "UNKNOWN": 0
+    }
+  },
+  "disagreements": [
+    "syn-seed-060-s3-v2"
+  ],
+  "target": 0.95,
+  "pass": true
+}

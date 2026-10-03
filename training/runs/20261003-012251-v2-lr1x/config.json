@@ -1,0 +1,109 @@
+{
+  "run_id": "20261003-012251-v2-lr1x",
+  "status": "done",
+  "started": "2026-10-03T01:22:51+00:00",
+  "base_model": "Qwen/Qwen3.5-4B",
+  "renderer": "qwen3_5_disable_thinking",
+  "method": "LoRA SFT, loss on the final assistant message only (TrainOnWhat.LAST_ASSISTANT_MESSAGE, mean reduction)",
+  "hyperparams": {
+    "rank": 32,
+    "lr": 0.000491,
+    "lr_default_get_lr": false,
+    "lr_schedule": "linear",
+    "batch": 32,
+    "epochs": 3,
+    "steps": 90,
+    "max_len": 1024,
+    "seed": 0,
+    "limit": null,
+    "dev_limit": null,
+    "adam": {
+      "beta1": 0.9,
+      "beta2": 0.95,
+      "eps": 1e-08
+    },
+    "eval_decoding": "greedy, temperature 0, max_tokens 512"
+  },
+  "data": {
+    "train": {
+      "path": "/Users/muaazshaikh/rakshak/data/splits/train.jsonl",
+      "sha256": "3ebe7af0605645c8066b519c67133367cb91c07b8510c8c122a8b87e34568eb6",
+      "n_used": 936
+    },
+    "dev": {
+      "path": "/Users/muaazshaikh/rakshak/data/splits/dev.jsonl",
+      "sha256": "e0464582477c81bf5a7fc59f694dc4356ef53f218b79bbccff9c9e6ba6e322b2",
+      "n": 159
+    },
+    "splits_lock_sha256": "3af215e385f3a3072eb12de01c14f6c07c1cd00fb79934d3dd39622099944c7b"
+  },
+  "git_sha": "d15e0d1bf626203979d7e74c8163b35edd39bb4c",
+  "sdk": {
+    "tinker": "0.32.0",
+    "tinker-cookbook": "0.5.7",
+    "transformers": "5.5.4"
+  },
+  "token_counts": {
+    "train_tokens_per_epoch": 265690,
+    "assistant_tokens_per_epoch": 40050,
+    "truncated_examples": 0,
+    "dev_prompt_tokens": 38317,
+    "dev_sample_tokens": 10406
+  },
+  "cost_estimate": {
+    "train_tokens": 797070,
+    "dev_eval_prompt_tokens": 114951,
+    "dev_eval_sample_tokens": 31218,
+    "train_usd": 0.5874,
+    "dev_eval_usd": 0.1077,
+    "total_usd": 0.6952,
+    "assumptions": "training $0.737/M tokens on full sequence length (PRD §11.2); sampling assumed ≤ $0.737/M for prefill and sampled tokens (not published in the SDK); checkpoint storage not included"
+  },
+  "checkpoints": [
+    {
+      "epoch": 1,
+      "sampler_path": "tinker://b26d0ce6-c0a2-53b3-8c38-d456cd64d979:train:0/sampler_weights/20261003-012251-v2-lr1x-e1"
+    },
+    {
+      "epoch": 2,
+      "sampler_path": "tinker://b26d0ce6-c0a2-53b3-8c38-d456cd64d979:train:0/sampler_weights/20261003-012251-v2-lr1x-e2"
+    },
+    {
+      "epoch": 3,
+      "sampler_path": "tinker://b26d0ce6-c0a2-53b3-8c38-d456cd64d979:train:0/sampler_weights/20261003-012251-v2-lr1x-e3"
+    }
+  ],
+  "best": {
+    "epoch": 3,
+    "checkpoint": "tinker://b26d0ce6-c0a2-53b3-8c38-d456cd64d979:train:0/sampler_weights/20261003-012251-v2-lr1x-e3",
+    "dev": {
+      "macro_f1": 1.0,
+      "scam_recall": 1.0,
+      "scam_recall_strict": 1.0,
+      "fpr_genuine": 0.0,
+      "fpr_hard_negative": 0.0,
+      "category_accuracy": 0.8541666666666666,
+      "span_f1": 0.653225806451613,
+      "grounding_rate": 1.0,
+      "json_validity": 0.9874213836477987,
+      "json_parse_rate": 1.0,
+      "unknown_rate": 0.0,
+      "errors": 0
+    }
+  },
+  "actual_cost": null,
+  "finished": "2026-10-03T01:31:51+00:00",
+  "sampling_tokens_actual": {
+    "prompt": 114951,
+    "sampled": 24852
+  },
+  "cost_estimate_actual_tokens": {
+    "train_tokens": 797070,
+    "dev_eval_prompt_tokens": 114951,
+    "dev_eval_sample_tokens": 24852,
+    "train_usd": 0.5874,
+    "dev_eval_usd": 0.103,
+    "total_usd": 0.6905,
+    "assumptions": "training $0.737/M tokens on full sequence length (PRD §11.2); sampling assumed ≤ $0.737/M for prefill and sampled tokens (not published in the SDK); checkpoint storage not included"
+  }
+}

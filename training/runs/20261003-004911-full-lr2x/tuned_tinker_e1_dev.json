@@ -1,0 +1,336 @@
+{
+  "system": "tuned_tinker_e1",
+  "split": "dev_synthetic",
+  "provisional": true,
+  "n": 166,
+  "metrics": {
+    "scam_recall": 0.9895833333333334,
+    "scam_recall_strict": 0.9895833333333334,
+    "fpr_genuine": 0.0,
+    "fpr_hard_negative": 0.0,
+    "macro_f1": 0.7408022247761744,
+    "category_accuracy": 0.8333333333333334,
+    "span_f1": 0.6053085143054119,
+    "macro_f1_unknown_as_safe": 0.7408022247761744,
+    "per_class_f1": {
+      "SCAM": 0.9947643979057592,
+      "SUSPICIOUS": 0.3333333333333333,
+      "SAFE": 0.8943089430894309
+    },
+    "grounding_rate": 0.9703389830508474,
+    "json_validity": 0.9698795180722891,
+    "json_parse_rate": 1.0,
+    "unknown_rate": 0.0,
+    "errors": 0,
+    "latency": {
+      "p50_ms": 2385.481917008292,
+      "p95_ms": 4782.935750001343
+    },
+    "confusion": {
+      "SAFE": {
+        "SAFE": 55
+      },
+      "SUSPICIOUS": {
+        "SAFE": 12,
+        "SUSPICIOUS": 3
+      },
+      "SCAM": {
+        "SCAM": 95,
+        "SAFE": 1
+      }
+    },
+    "n": 166,
+    "n_scam": 96,
+    "n_suspicious": 15,
+    "n_genuine": 55,
+    "n_hard_negative": 19
+  },
+  "ci95": {
+    "scam_recall": [
+      0.9658992946708465,
+      1.0
+    ],
+    "scam_recall_strict": [
+      0.9658992946708465,
+      1.0
+    ],
+    "fpr_genuine": [
+      0.0,
+      0.0
+    ],
+    "fpr_hard_negative": [
+      0.0,
+      0.0
+    ],
+    "macro_f1": [
+      0.6288421844212818,
+      0.8415405167748917
+    ],
+    "category_accuracy": [
+      0.7524752475247525,
+      0.9080721003134796
+    ],
+    "span_f1": [
+      0.5601129465203207,
+      0.6434793501602815
+    ]
+  },
+  "slices": {
+    "language": {
+      "en": {
+        "n": 65,
+        "scam_recall": 0.975609756097561,
+        "scam_recall_strict": 0.975609756097561,
+        "fpr_genuine": 0.0,
+        "fpr_hard_negative": 0.0,
+        "macro_f1": 0.7349028615178486,
+        "category_accuracy": 0.8292682926829268,
+        "json_validity": 0.9846153846153847
+      },
+      "hi": {
+        "n": 41,
+        "scam_recall": 1.0,
+        "scam_recall_strict": 1.0,
+        "fpr_genuine": 0.0,
+        "fpr_hard_negative": 0.0,
+        "macro_f1": 0.6274509803921569,
+        "category_accuracy": 0.7727272727272727,
+        "json_validity": 0.9512195121951219
+      },
+      "hinglish": {
+        "n": 60,
+        "scam_recall": 1.0,
+        "scam_recall_strict": 1.0,
+        "fpr_genuine": 0.0,
+        "fpr_hard_negative": 0.0,
+        "macro_f1": 0.8043478260869565,
+        "category_accuracy": 0.8787878787878788,
+        "json_validity": 0.9666666666666667
+      }
+    },
+    "category": {
+      "courier_parcel": {
+        "n": 8,
+        "scam_recall": 1.0,
+        "scam_recall_strict": 1.0,
+        "fpr_genuine": null,
+        "fpr_hard_negative": null,
+        "macro_f1": 1.0,
+        "category_accuracy": 0.875,
+        "json_validity": 0.875
+      },
+      "delivery_update": {
+        "n": 8,
+        "scam_recall": null,
+        "scam_recall_strict": null,
+        "fpr_genuine": 0.0,
+        "fpr_hard_negative": 0.0,
+        "macro_f1": 1.0,
+        "category_accuracy": null,
+        "json_validity": 1.0
+      },
+      "digital_arrest": {
+        "n": 8,
+        "scam_recall": 1.0,
+        "scam_recall_strict": 1.0,
+        "fpr_genuine": null,
+        "fpr_hard_negative": null,
+        "macro_f1": 1.0,
+        "category_accuracy": 1.0,
+        "json_validity": 1.0
+      },
+      "electricity_disconnect": {
+        "n": 8,
+        "scam_recall": 0.875,
+        "scam_recall_strict": 0.875,
+        "fpr_genuine": null,
+        "fpr_hard_negative": null,
+        "macro_f1": 0.4666666666666667,
+        "category_accuracy": 0.875,
+        "json_validity": 1.0
+      },
+      "family_emergency": {
+        "n": 8,
+        "scam_recall": 1.0,
+        "scam_recall_strict": 1.0,
+        "fpr_genuine": null,
+        "fpr_hard_negative": null,
+        "macro_f1": 1.0,
+        "category_accuracy": 0.875,
+        "json_validity": 0.875
+      },
+      "genuine_otp": {
+        "n": 7,
+        "scam_recall": null,
+        "scam_recall_strict": null,
+        "fpr_genuine": 0.0,
+        "fpr_hard_negative": 0.0,
+        "macro_f1": 1.0,
+        "category_accuracy": null,
+        "json_validity": 1.0
+      },
+      "govt_genuine": {
+        "n": 15,
+        "scam_recall": null,
+        "scam_recall_strict": null,
+        "fpr_genuine": 0.0,
+        "fpr_hard_negative": null,
+        "macro_f1": 1.0,
+        "category_accuracy": null,
+        "json_validity": 1.0
+      },
+      "investment_tips": {
+        "n": 8,
+        "scam_recall": 1.0,
+        "scam_recall_strict": 1.0,
+        "fpr_genuine": null,
+        "fpr_hard_negative": null,
+        "macro_f1": 1.0,
+        "category_accuracy": 1.0,
+        "json_validity": 1.0
+      },
+      "kyc_account_block": {
+        "n": 8,
+        "scam_recall": 1.0,
+        "scam_recall_strict": 1.0,
+        "fpr_genuine": null,
+        "fpr_hard_negative": null,
+        "macro_f1": 1.0,
+        "category_accuracy": 1.0,
+        "json_validity": 1.0
+      },
+      "legit_promo": {
+        "n": 8,
+        "scam_recall": null,
+        "scam_recall_strict": null,
+        "fpr_genuine": 0.0,
+        "fpr_hard_negative": 0.0,
+        "macro_f1": 1.0,
+        "category_accuracy": null,
+        "json_validity": 1.0
+      },
+      "lottery_prize": {
+        "n": 8,
+        "scam_recall": 1.0,
+        "scam_recall_strict": 1.0,
+        "fpr_genuine": null,
+        "fpr_hard_negative": null,
+        "macro_f1": 1.0,
+        "category_accuracy": 0.625,
+        "json_validity": 1.0
+      },
+      "malicious_apk": {
+        "n": 8,
+        "scam_recall": 1.0,
+        "scam_recall_strict": 1.0,
+        "fpr_genuine": null,
+        "fpr_hard_negative": null,
+        "macro_f1": 1.0,
+        "category_accuracy": 1.0,
+        "json_validity": 1.0
+      },
+      "other_scam": {
+        "n": 23,
+        "scam_recall": 1.0,
+        "scam_recall_strict": 1.0,
+        "fpr_genuine": null,
+        "fpr_hard_negative": null,
+        "macro_f1": 0.4444444444444444,
+        "category_accuracy": 0.0,
+        "json_validity": 1.0
+      },
+      "otp_phishing": {
+        "n": 8,
+        "scam_recall": 1.0,
+        "scam_recall_strict": 1.0,
+        "fpr_genuine": null,
+        "fpr_hard_negative": null,
+        "macro_f1": 1.0,
+        "category_accuracy": 0.875,
+        "json_validity": 0.875
+      },
+      "personal": {
+        "n": 8,
+        "scam_recall": null,
+        "scam_recall_strict": null,
+        "fpr_genuine": 0.0,
+        "fpr_hard_negative": 0.0,
+        "macro_f1": 1.0,
+        "category_accuracy": null,
+        "json_validity": 0.75
+      },
+      "task_job_offer": {
+        "n": 8,
+        "scam_recall": 1.0,
+        "scam_recall_strict": 1.0,
+        "fpr_genuine": null,
+        "fpr_hard_negative": null,
+        "macro_f1": 1.0,
+        "category_accuracy": 1.0,
+        "json_validity": 1.0
+      },
+      "transaction_alert": {
+        "n": 9,
+        "scam_recall": null,
+        "scam_recall_strict": null,
+        "fpr_genuine": 0.0,
+        "fpr_hard_negative": 0.0,
+        "macro_f1": 1.0,
+        "category_accuracy": null,
+        "json_validity": 1.0
+      },
+      "upi_collect_refund": {
+        "n": 8,
+        "scam_recall": 1.0,
+        "scam_recall_strict": 1.0,
+        "fpr_genuine": null,
+        "fpr_hard_negative": null,
+        "macro_f1": 1.0,
+        "category_accuracy": 0.875,
+        "json_validity": 1.0
+      }
+    },
+    "obfuscated": {
+      "false": {
+        "n": 111,
+        "scam_recall": 0.9777777777777777,
+        "scam_recall_strict": 0.9777777777777777,
+        "fpr_genuine": 0.0,
+        "fpr_hard_negative": 0.0,
+        "macro_f1": 0.688173873567132,
+        "category_accuracy": 0.8666666666666667,
+        "json_validity": 0.972972972972973
+      },
+      "true": {
+        "n": 55,
+        "scam_recall": 1.0,
+        "scam_recall_strict": 1.0,
+        "fpr_genuine": null,
+        "fpr_hard_negative": null,
+        "macro_f1": 0.5555555555555555,
+        "category_accuracy": 0.803921568627451,
+        "json_validity": 0.9636363636363636
+      }
+    },
+    "source": {
+      "synthetic": {
+        "n": 166,
+        "scam_recall": 0.9895833333333334,
+        "scam_recall_strict": 0.9895833333333334,
+        "fpr_genuine": 0.0,
+        "fpr_hard_negative": 0.0,
+        "macro_f1": 0.7408022247761744,
+        "category_accuracy": 0.8333333333333334,
+        "json_validity": 0.9698795180722891
+      }
+    }
+  },
+  "timestamp": "2026-10-03T00:52:01+00:00",
+  "git_sha": "97aca403f6ad7bc2d8a9a318b8d9e2fd7bdaab30",
+  "data": {
+    "path": "data/splits/dev.jsonl",
+    "sha256": "9d387b981d6474bc8ad055e15010eff5feaf298a026c3ec82faa58101cfccca2"
+  },
+  "checkpoint": "tinker://ae99e1c6-ad0a-59ae-a85f-516d6b445f60:train:0/sampler_weights/20261003-004911-full-lr2x-e1",
+  "run_id": "20261003-004911-full-lr2x"
+}

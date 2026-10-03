@@ -1,0 +1,76 @@
+{
+  "provisional": true,
+  "split": "dev_synthetic",
+  "epochs": [
+    {
+      "epoch": 1,
+      "checkpoint": "tinker://0930b8c0-0d08-58dd-ad8a-c7ca744ed258:train:0/sampler_weights/20261003-002612-smoke-e1",
+      "train_loss_first": 0.8178185224533081,
+      "train_loss_last": 0.11816377937793732,
+      "train_loss_mean": 0.44907540934426443,
+      "dev": {
+        "macro_f1": 0.6200530748817353,
+        "scam_recall": 0.9479166666666666,
+        "scam_recall_strict": 0.9479166666666666,
+        "fpr_genuine": 0.0,
+        "fpr_hard_negative": 0.0,
+        "category_accuracy": 0.14583333333333334,
+        "span_f1": 0.6192218157632192,
+        "grounding_rate": 0.9658703071672355,
+        "json_validity": 0.4868421052631579,
+        "json_parse_rate": 1.0,
+        "unknown_rate": 0.0,
+        "errors": 0
+      },
+      "dev_ci95": {
+        "scam_recall": [
+          0.9,
+          0.989247311827957
+        ],
+        "scam_recall_strict": [
+          0.9,
+          0.989247311827957
+        ],
+        "fpr_genuine": [
+          0.0,
+          0.0
+        ],
+        "fpr_hard_negative": [
+          0.0,
+          0.0
+        ],
+        "macro_f1": [
+          0.5930912363958347,
+          0.6433001024740156
+        ],
+        "category_accuracy": [
+          0.0851063829787234,
+          0.2247383784974664
+        ],
+        "span_f1": [
+          0.5723381524789223,
+          0.6657143255415513
+        ]
+      },
+      "dev_eval_sec": 59.1
+    }
+  ],
+  "best": {
+    "epoch": 1,
+    "checkpoint": "tinker://0930b8c0-0d08-58dd-ad8a-c7ca744ed258:train:0/sampler_weights/20261003-002612-smoke-e1",
+    "dev": {
+      "macro_f1": 0.6200530748817353,
+      "scam_recall": 0.9479166666666666,
+      "scam_recall_strict": 0.9479166666666666,
+      "fpr_genuine": 0.0,
+      "fpr_hard_negative": 0.0,
+      "category_accuracy": 0.14583333333333334,
+      "span_f1": 0.6192218157632192,
+      "grounding_rate": 0.9658703071672355,
+      "json_validity": 0.4868421052631579,
+      "json_parse_rate": 1.0,
+      "unknown_rate": 0.0,
+      "errors": 0
+    }
+  }
+}

@@ -1,4 +1,9 @@
 {
-  "T_HIGH": null,
-  "T_LOW": null
+  "T_HIGH": 0.497688,
+  "T_LOW": 0.5,
+  "split": "dev_synthetic",
+  "provisional": true,
+  "n_dev": 159,
+  "detector_version": "rakshak-detector-v2-q4km",
+  "created_at": "2026-10-03T02:01:48+00:00"
 }

@@ -1,0 +1,82 @@
+{
+  "provisional": true,
+  "split": "dev_synthetic",
+  "n": 50,
+  "warmup": 3,
+  "base_url": "http://127.0.0.1:8000",
+  "hardware": "MacBook Pro M3 Pro 18 GB",
+  "detector_version": "rakshak-detector-v2-q4km",
+  "gemma_model": "gemma4:e2b",
+  "hub_status": "ok",
+  "end_to_end_wall": {
+    "p50_ms": 843.5666250006761,
+    "p95_ms": 4902.193208006793,
+    "max_ms": 11131.15420799295,
+    "n": 50
+  },
+  "nodes": {
+    "detect": {
+      "p50_ms": 832.0,
+      "p95_ms": 3570.0,
+      "max_ms": 4091.0,
+      "n": 50
+    },
+    "explain": {
+      "p50_ms": 0.0,
+      "p95_ms": 1641.0,
+      "max_ms": 8471.0,
+      "n": 50
+    },
+    "fuse": {
+      "p50_ms": 0.0,
+      "p95_ms": 0.0,
+      "max_ms": 9.0,
+      "n": 50
+    },
+    "normalize": {
+      "p50_ms": 0.0,
+      "p95_ms": 2.0,
+      "max_ms": 4.0,
+      "n": 50
+    },
+    "perceive": {
+      "p50_ms": 0.0,
+      "p95_ms": 0.0,
+      "max_ms": 0.0,
+      "n": 50
+    },
+    "rules": {
+      "p50_ms": 0.0,
+      "p95_ms": 0.0,
+      "max_ms": 13.0,
+      "n": 50
+    },
+    "total": {
+      "p50_ms": 834.0,
+      "p95_ms": 4893.0,
+      "max_ms": 11025.0,
+      "n": 50
+    }
+  },
+  "end_to_end_by_verdict": {
+    "SAFE": {
+      "p50_ms": 783.2760000019334,
+      "p95_ms": 937.2761249978794,
+      "max_ms": 1573.5931249946589,
+      "n": 31
+    },
+    "SCAM": {
+      "p50_ms": 4071.2323339976138,
+      "p95_ms": 11131.15420799295,
+      "max_ms": 11131.15420799295,
+      "n": 19
+    }
+  },
+  "errors": {},
+  "timestamp": "2026-10-03T01:52:54+00:00",
+  "git_sha": "d15e0d1bf626203979d7e74c8163b35edd39bb4c",
+  "data": {
+    "path": "/Users/muaazshaikh/rakshak/data/splits/dev.jsonl",
+    "sha256": "e0464582477c81bf5a7fc59f694dc4356ef53f218b79bbccff9c9e6ba6e322b2"
+  }
+}
