@@ -2,8 +2,12 @@
 
     hard rule              -> SCAM (rule red flags)
     p_scam >= T_HIGH       -> SCAM (model red flags)
-    p_scam >= T_LOW or >= 2 soft rules -> SUSPICIOUS (model + rule red flags)
+    risk >= T_LOW or >= 2 soft rules -> SUSPICIOUS (model + rule red flags)
     otherwise              -> SAFE
+
+risk = 1 - p_safe, the SCAM + SUSPICIOUS mass (§7.4 as amended 3 Oct, §17): the tuned detector
+puts SUSPICIOUS mass on the SUSPICIOUS label, so p_scam alone would turn every detector
+SUSPICIOUS into SAFE. If the detector result has no p_safe, risk falls back to p_scam.
 
 Detector unavailable or invalid twice (rules-only): hard -> SCAM, >= 1 soft -> SUSPICIOUS,
 else UNKNOWN. Never SAFE without the detector (PRD §13). Red flags shown to users are exact
@@ -97,6 +101,12 @@ def rule_red_flags(rules: RuleSignals, names: list[str], text: str) -> list[dict
     return flags
 
 
+def risk(det: DetectorResult) -> float:
+    """P(verdict != SAFE) = 1 - p_safe; p_scam when p_safe is unknown (backward compatible)."""
+    p_safe = getattr(det, "p_safe", None)
+    return det.p_scam if p_safe is None else 1.0 - p_safe
+
+
 def fuse(
     rules: RuleSignals,
     det: DetectorResult | None,
@@ -119,7 +129,7 @@ def fuse(
         return FusionResult(
             "SCAM", _scam_category(det, "other_scam"), list(det.red_flags), det.p_scam
         )
-    if det.p_scam >= th.t_low or len(rules.soft) >= 2:
+    if risk(det) >= th.t_low or len(rules.soft) >= 2:
         flags = list(det.red_flags) + rule_red_flags(rules, rules.soft, text)
         return FusionResult("SUSPICIOUS", _scam_category(det, "other_scam"), flags, det.p_scam)
     c = det.output.category

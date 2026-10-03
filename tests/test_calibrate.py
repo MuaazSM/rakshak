@@ -13,11 +13,12 @@ def rules(hard=(), soft=()):
 
 
 def cases(spec):
-    """spec: list of (label, p_scam, n_soft, hard?)"""
+    """spec: list of (label, p_scam, n_soft=0, hard=False, p_safe=None)"""
     out = []
     for i, (label, p, *rest) in enumerate(spec):
         n_soft = rest[0] if rest else 0
         hard = rest[1] if len(rest) > 1 else False
+        p_safe = rest[2] if len(rest) > 2 else None
         out.append(
             C.Case(
                 id=f"x{i}",
@@ -27,46 +28,55 @@ def cases(spec):
                     hard=["apk_link"] if hard else (),
                     soft=[f"s{j}" for j in range(n_soft)],
                 ),
+                p_safe=p_safe,
             )
         )
     return out
 
 
-def test_separable_scores_pick_tightest_thresholds():
+def test_separable_scores_take_midpoints_without_clamp():
     cs = cases(
         [("SCAM", p) for p in (0.9, 0.95, 0.99, 0.97, 0.92)]
         + [("SAFE", p) for p in (0.01, 0.02, 0.05, 0.1, 0.2)]
     )
     hi = C.search_t_high(cs)
-    # lowest threshold with no genuine SCAM: the next lower observed p (0.2) is a SAFE item
-    assert hi == {"value": 0.9, "feasible": True, "fpr_genuine_scam": 0.0}
+    # edge 0.9 (lowest with no genuine SCAM); equivalent down to just above 0.2 → midpoint 0.55
+    assert hi["edge"] == 0.9 and hi["interval"] == [0.2, 0.9]
+    assert hi["value"] == pytest.approx(0.55) and hi["feasible"]
     lo = C.search_t_low(cs, hi["value"])
-    # every scam is already SCAM at T_HIGH, so recall holds at the top candidate → clamped
-    assert lo["value"] == 0.9 and lo["clamped_from"] == 0.99 and lo["feasible"]
+    # every scam is already SCAM; equivalent risk thresholds (0.2, 1.0] → 0.6, not clamped
+    assert lo["interval"] == [0.2, 1.0] and lo["value"] == pytest.approx(0.6)
+    assert "clamped_from" not in lo
 
 
-def test_all_scams_high_and_suspicious_band():
+def test_degenerate_dev_suspicious_mass_on_suspicious_label():
+    """The v1 synthetic-dev case (§17 3 Oct 06:45): genuine p_scam ≤ 0.006, scams ≥ 0.263,
+    detector-SUSPICIOUS items with p_scam 0.0002 but p_safe 0.01."""
     cs = cases(
-        [("SCAM", 0.99)] * 40
-        + [("SCAM", 0.6)]  # needs the SUSPICIOUS band
-        + [("SAFE", 0.0)] * 50
-        + [("SAFE", 0.95)]  # 1/51 ≈ 2% FPR is allowed at 0.95…
-        + [("SAFE", 0.97), ("SAFE", 0.98)]  # …but 3/53 is not
+        [("SAFE", 0.001, 0, False, 0.99)] * 39
+        + [("SAFE", 0.006, 0, False, 0.99)]
+        + [("SCAM", 0.263 + k * 0.03, 0, False, 0.0) for k in range(20)]
+        + [("SUSPICIOUS", 0.0002, 0, False, 0.01)] * 10
     )
     hi = C.search_t_high(cs)
-    # 53 genuine: T=0.95 → 3/53, T=0.97 → 2/53 = 3.8% (too many), T=0.98 → 1/53 = 1.9%
-    assert hi["value"] == 0.98 and hi["fpr_genuine_scam"] <= C.MAX_FPR_GENUINE
+    assert hi["edge"] == 0.006  # the literal "lowest" T_HIGH
+    assert hi["interval"] == [0.001, 0.263] and hi["value"] == pytest.approx(0.132)
     lo = C.search_t_low(cs, hi["value"])
-    # 40/41 = 0.976 < 0.98, so the 0.6 scam must be caught → T_LOW = 0.6
-    assert lo == {"value": 0.6, "feasible": True, "scam_recall": 1.0}
+    assert lo["feasible"] and lo["value"] == pytest.approx(0.505)  # on risk, not clamped
+    v = C.verdicts(cs, hi["value"], lo["value"])
+    assert v[:40] == ["SAFE"] * 40 and v[40:60] == ["SCAM"] * 20
+    assert v[60:] == ["SUSPICIOUS"] * 10  # risk 0.99, not p_scam 0.0002
 
 
 def test_t_high_respects_three_percent_exactly():
-    # 100 genuine; 3 with p = 0.9 → FPR 3% at T=0.9 is allowed; 4 would not be
+    # 100 genuine; 3 at p = 0.9 → 3% at T=0.9 is allowed, and so is everything above 0.0
     cs = cases([("SAFE", 0.0)] * 97 + [("SAFE", 0.9)] * 3 + [("SCAM", 0.95)] * 10)
-    assert C.search_t_high(cs)["value"] == 0.9
+    hi = C.search_t_high(cs)
+    assert hi["edge"] == 0.9 and hi["interval"] == [0.0, 0.95]
+    assert hi["value"] == pytest.approx(0.475)
     cs = cases([("SAFE", 0.0)] * 96 + [("SAFE", 0.9)] * 4 + [("SCAM", 0.95)] * 10)
-    assert C.search_t_high(cs)["value"] == 0.95
+    hi = C.search_t_high(cs)
+    assert hi["edge"] == 0.95 and hi["value"] == pytest.approx(0.925)
 
 
 def test_overlapping_distributions_meet_recall_with_low_threshold():
@@ -74,23 +84,42 @@ def test_overlapping_distributions_meet_recall_with_low_threshold():
     safe = [0.05] * 40 + [0.15, 0.25, 0.35, 0.45, 0.55, 0.6, 0.7, 0.8, 0.85, 0.9]
     cs = cases([("SCAM", p) for p in scam] + [("SAFE", p) for p in safe])
     hi = C.search_t_high(cs)
-    assert hi["value"] == 0.9  # 0.9 alone is 1/50 = 2%; 0.85 would be 4%
+    assert hi["edge"] == 0.9  # 0.9 alone is 1/50 = 2%; 0.85 would be 4%
+    assert hi["interval"] == [0.85, 0.95] and hi["value"] == pytest.approx(0.9)
     lo = C.search_t_low(cs, hi["value"])
-    # recall ≥ 0.98 of 50 → at most 1 miss → T_LOW must reach 0.2
-    assert lo["value"] == 0.2 and lo["scam_recall"] == pytest.approx(0.98)
+    # recall ≥ 0.98 of 50 → at most 1 miss → edge 0.2; 0.15 would flag one more genuine
+    assert lo["edge"] == 0.2 and lo["scam_recall_at_edge"] == pytest.approx(0.98)
+    assert lo["interval"] == [0.15, 0.2] and lo["value"] == pytest.approx(0.175)
 
 
 def test_soft_rules_count_toward_recall():
-    # the 0.1 scam has 2 soft signals → SUSPICIOUS via rules regardless of T_LOW
-    cs = cases([("SCAM", 0.95)] * 49 + [("SCAM", 0.1, 2)] + [("SAFE", 0.0)] * 20)
-    lo = C.search_t_low(cs, 0.95)
-    assert lo["feasible"] and lo["value"] == 0.95  # highest candidate, no clamp needed
+    spec = [("SCAM", 0.95)] * 48 + [("SAFE", 0.0)] * 20
+    with_soft = cases(spec + [("SCAM", 0.01, 2)] * 2)
+    lo = C.search_t_low(with_soft, 0.9)
+    assert lo["feasible"] and lo["interval"] == [0.0, 1.0] and lo["value"] == 0.5
+    without = cases(spec + [("SCAM", 0.01)] * 2)
+    lo = C.search_t_low(without, 0.9)
+    assert lo["edge"] == 0.01 and lo["value"] == pytest.approx(0.005)
+
+
+def test_t_low_uses_risk_not_p_scam():
+    # detector says SUSPICIOUS on scams: little SCAM mass, little SAFE mass
+    cs = cases(
+        [("SCAM", 0.001, 0, False, 0.02)] * 50
+        + [("SAFE", 0.0005, 0, False, 0.995)] * 50
+        + [("SCAM", 0.97, 0, False, 0.0)] * 50
+    )
+    lo = C.search_t_low(cs, 0.5)
+    assert lo["edge"] == pytest.approx(0.98)  # risk of the SUSPICIOUS-labelled scams
+    assert lo["interval"][0] == pytest.approx(0.005) and "clamped_from" not in lo
+    v = C.verdicts(cs, 0.5, lo["value"])
+    assert v[:50] == ["SUSPICIOUS"] * 50 and v[50:100] == ["SAFE"] * 50
 
 
 def test_hard_rule_on_genuine_makes_t_high_infeasible():
     cs = cases([("SAFE", 0.0, 0, True)] * 5 + [("SAFE", 0.0)] * 5 + [("SCAM", 0.9)] * 5)
     hi = C.search_t_high(cs)
-    assert hi["feasible"] is False and hi["value"] == 0.9
+    assert hi["feasible"] is False and hi["value"] == 1.0
 
 
 def test_no_genuine_or_no_scam_items():
@@ -99,7 +128,7 @@ def test_no_genuine_or_no_scam_items():
 
 
 def test_unreachable_recall_uses_lowest_candidate():
-    # one scam has no detector output (invalid twice) and no rules → UNKNOWN, never caught
+    # half the scams have no detector output (invalid twice) and no rules → UNKNOWN
     cs = cases([("SCAM", None)] * 5 + [("SCAM", 0.2)] * 5 + [("SAFE", 0.1)] * 5)
     lo = C.search_t_low(cs, 0.9)
     assert lo["feasible"] is False and lo["value"] == 0.1
@@ -157,7 +186,8 @@ def test_main_from_cache_writes_thresholds(tmp_path, monkeypatch):
     )
     assert rc == 0
     th = json.loads(out.read_text())
-    assert th["T_HIGH"] == 0.9 and th["T_LOW"] <= th["T_HIGH"]
+    # edge 0.9; equivalent down to just above the top genuine 0.039 → midpoint; T_LOW on risk
+    assert th["T_HIGH"] == pytest.approx((0.039 + 0.9) / 2) and th["T_LOW"] >= th["T_HIGH"]
     assert th["split"] == "dev_synthetic" and th["provisional"] is True and th["n_dev"] == 40
     assert set(th) == {
         "T_HIGH",

@@ -63,12 +63,23 @@ class DetectorResult:
     grounding_rate: float | None  # kept / total before filtering; None if the model gave no flags
     raw: str  # raw model text (never log it)
     retries: int  # 0 or 1 (constrained retry used)
+    # P(verdict == SAFE) from the same renormalized logprob masses (PRD §7.4 amended:
+    # risk = 1 - p_safe drives the SUSPICIOUS branch). None = unknown; fusion then uses p_scam.
+    p_safe: float | None = None
 
 
 def p_scam_from_logprobs(
     logprob_content: list[dict] | None, label_tokens: dict[str, list[str]] | None = None
 ) -> float | None:
-    """P(verdict == "SCAM") from the token logprobs of a chat completion (PRD FR-13).
+    """P(verdict == "SCAM"); see `label_probs_from_logprobs`."""
+    probs = label_probs_from_logprobs(logprob_content, label_tokens)
+    return None if probs is None else probs["SCAM"]
+
+
+def label_probs_from_logprobs(
+    logprob_content: list[dict] | None, label_tokens: dict[str, list[str]] | None = None
+) -> dict[str, float] | None:
+    """{SCAM, SUSPICIOUS, SAFE} probabilities from the token logprobs of a chat completion (PRD FR-13).
 
     `logprob_content` is `choices[0].logprobs.content`: one entry per generated token with
     `token`, `logprob` and `top_logprobs` (alternatives at that position, incl. the sampled one).
@@ -95,7 +106,7 @@ def p_scam_from_logprobs(
     that match is empty (the sampled path tokenized differently, or an overshooting token such
     as `AM"`), the plain string rule above is used.
 
-    The three label masses are renormalized to sum to 1 and P(SCAM) is returned. Returns None
+    The three label masses are renormalized to sum to 1 and returned. Returns None
     when the verdict position cannot be located or no label mass was found (the caller then
     falls back to the label itself).
     """
@@ -159,7 +170,7 @@ def p_scam_from_logprobs(
     total = sum(mass.values())
     if total <= 0:
         return None
-    return mass["SCAM"] / total
+    return {k: v / total for k, v in mass.items()}
 
 
 # Qwen3.5 pieces of the verdict labels; used when llama-server's /tokenize is unavailable.
@@ -297,11 +308,16 @@ async def detect(
             out = _parse(content)
             if out is None:
                 continue
-            p = p_scam_from_logprobs(lp, _LABEL_TOKEN_CACHE.get(_base(url), STATIC_LABEL_TOKENS))
-            if p is None:  # no logprobs: fall back to the label itself
+            probs = label_probs_from_logprobs(
+                lp, _LABEL_TOKEN_CACHE.get(_base(url), STATIC_LABEL_TOKENS)
+            )
+            if probs is None:  # no logprobs: fall back to the label itself
                 p = {"SCAM": 1.0, "SUSPICIOUS": 0.5, "SAFE": 0.0}[out.verdict]
+                p_safe = {"SCAM": 0.0, "SUSPICIOUS": 0.0, "SAFE": 1.0}[out.verdict]
+            else:
+                p, p_safe = probs["SCAM"], probs["SAFE"]
             flags, rate = ground_red_flags(out, text)
-            return DetectorResult(out, p, flags, rate, content, retries)
+            return DetectorResult(out, p, flags, rate, content, retries, p_safe)
         return None
     finally:
         if own:

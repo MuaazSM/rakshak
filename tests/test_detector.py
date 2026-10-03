@@ -51,6 +51,17 @@ def test_p_scam_single_token_labels():
     assert p == pytest.approx(0.9)
 
 
+def test_label_probs_sum_to_one_and_match_p_scam():
+    lp = [
+        lp_entry('{"verdict":"', {'{"verdict":"': 1.0}),
+        lp_entry("SAFE", {"SAFE": 0.6, "SCAM": 0.1, "SUSPICIOUS": 0.1}),
+    ]
+    probs = detector.label_probs_from_logprobs(lp)
+    assert probs == pytest.approx({"SCAM": 0.125, "SUSPICIOUS": 0.125, "SAFE": 0.75})
+    assert detector.p_scam_from_logprobs(lp) == pytest.approx(probs["SCAM"])
+    assert detector.label_probs_from_logprobs(None) is None
+
+
 def test_p_scam_single_token_safe_sampled():
     lp = [
         lp_entry('{"verdict":"', {'{"verdict":"': 1.0}),
@@ -167,6 +178,7 @@ async def test_detect_happy_path_request_shape(hub_env):  # noqa: F811
     assert res is not None and res.retries == 0
     assert res.output.verdict == "SCAM"
     assert res.p_scam == pytest.approx(0.93)
+    assert res.p_safe == pytest.approx(0.035)
     assert res.grounding_rate == 1.0
     assert res.red_flags == [
         {"quote": "will be blocked", "reason": "urgency_deadline", "source": "model"}
@@ -242,6 +254,31 @@ async def test_detect_falls_back_to_label_without_logprobs(hub_env):  # noqa: F8
 
     res = await detector.detect("sms", None, [], TEXT, client=_client(handler))
     assert res is not None and res.p_scam == 0.0 and res.grounding_rate is None
+    assert res.p_safe == 1.0
+
+
+@pytest.mark.parametrize(
+    ("verdict", "p_scam", "p_safe"), [("SCAM", 1.0, 0.0), ("SUSPICIOUS", 0.5, 0.0)]
+)
+async def test_detect_label_fallback_p_safe(hub_env, verdict, p_scam, p_safe):  # noqa: F811
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=_completion(_content(verdict, [], "other_scam")))
+
+    res = await detector.detect("sms", None, [], TEXT, client=_client(handler))
+    assert res is not None and (res.p_scam, res.p_safe) == (p_scam, p_safe)
+
+
+async def test_detect_p_safe_when_suspicious_sampled(hub_env):  # noqa: F811
+    lp = [
+        lp_entry('{"verdict":"', {'{"verdict":"': 1.0}),
+        lp_entry("SUSPICIOUS", {"SUSPICIOUS": 0.9898, "SAFE": 0.01, "SCAM": 0.0002}),
+    ]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=_completion(_content("SUSPICIOUS", [], "other_scam"), lp))
+
+    res = await detector.detect("sms", None, [], TEXT, client=_client(handler))
+    assert res.p_scam == pytest.approx(0.0002) and res.p_safe == pytest.approx(0.01)
 
 
 async def test_detect_grounds_against_normalized_text(hub_env):  # noqa: F811

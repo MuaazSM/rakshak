@@ -142,3 +142,32 @@ def test_partial_thresholds_are_not_calibrated(hub_env):  # noqa: F811
 
 def test_thresholds_use_default_cache_path(hub_env):  # noqa: F811
     assert fusion.get_thresholds().calibrated is False
+
+
+# --- §7.4 amended: SUSPICIOUS branch on risk = 1 - p_safe ---
+
+
+def _with_p_safe(det, p_safe):
+    det.p_safe = p_safe
+    return det
+
+
+def test_detector_suspicious_with_tiny_p_scam_is_suspicious_via_risk():
+    det = _with_p_safe(make_result("SUSPICIOUS", 0.0002, category="other_scam"), 0.01)
+    r = fuse(FakeRules.make(), det, TEXT, TH)
+    assert r.verdict == "SUSPICIOUS" and r.p_scam == 0.0002
+
+
+def test_low_risk_is_safe_and_high_p_scam_still_scam():
+    det = _with_p_safe(make_result("SAFE", 0.01, category="personal", flags=[]), 0.98)
+    assert fuse(FakeRules.make(), det, TEXT, TH).verdict == "SAFE"
+    det = _with_p_safe(make_result("SCAM", 0.85), 0.0)
+    assert fuse(FakeRules.make(), det, TEXT, TH).verdict == "SCAM"
+
+
+def test_risk_falls_back_to_p_scam_without_p_safe():
+    det = make_result("SUSPICIOUS", 0.0002, category="other_scam")
+    assert det.p_safe is None
+    assert fusion.risk(det) == 0.0002
+    assert fuse(FakeRules.make(), det, TEXT, TH).verdict == "SAFE"
+    assert fusion.risk(_with_p_safe(det, 0.25)) == 0.75
