@@ -274,7 +274,7 @@ def test_health_reports_models_thresholds_and_p95(client, monkeypatch):
         _post_check(client)
     h = client.get("/health").json()
     assert h["status"] == "degraded"
-    assert h["models"] == {"detector": True, "gemma": False, "gemma_audio": None}
+    assert h["models"] == {"detector": True, "gemma": False, "gemma_audio": False}
     assert h["model_versions"] == {"detector": "rakshak-detector-v1-q4km", "gemma": "gemma4:e2b"}
     assert h["thresholds"] == {"t_high": 0.8, "t_low": 0.35, "calibrated": False}
     assert h["latency_samples"] == 3 and isinstance(h["latency_p95_ms"], int)

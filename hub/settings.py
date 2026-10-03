@@ -31,9 +31,9 @@ class Settings(BaseSettings):
     # Phase 1: local models
     ollama_host: str = "http://127.0.0.1:11434"
     gemma_model: str = "gemma4:e2b"
-    gemma_audio_url: str | None = None
-    asr_fallback: Literal["gemma", "mlx-whisper"] = "mlx-whisper"
-    ocr_fallback: Literal["gemma", "tesseract"] = "tesseract"
+    gemma_audio_url: str | None = "http://127.0.0.1:8082/v1"
+    asr_fallback: Literal["gemma", "mlx-whisper"] = "gemma"
+    ocr_fallback: Literal["gemma", "tesseract"] = "gemma"
 
     # Phase 4: training
     detector_base: str = "Qwen/Qwen3.5-4B"

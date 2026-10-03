@@ -4,7 +4,9 @@ import { FIXTURES, fixtureById, fixtureForText } from "./fixtures";
 import type { Verdict } from "./types";
 
 export const MOCK = import.meta.env.VITE_MOCK === "1";
-const CHECK_TIMEOUT_MS = 20_000; // B5: after 20 s with no answer -> B9
+// B5: no answer within the timeout -> /v/offline (B9). Image and voice go through Gemma first, so they get longer.
+const TEXT_TIMEOUT_MS = 30_000; // /api/check
+const MEDIA_TIMEOUT_MS = 45_000; // /voice and image /api/share
 
 export class ApiError extends Error {
   status: number;
@@ -41,7 +43,7 @@ export async function checkText(text: string): Promise<Verdict> {
   const res = await request(
     "/api/check",
     { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
-    CHECK_TIMEOUT_MS,
+    TEXT_TIMEOUT_MS,
   );
   return (await res.json()) as Verdict;
 }
@@ -55,7 +57,7 @@ export async function checkImage(file: File): Promise<Verdict> {
   form.set("parent_id", getParentId());
   form.set("lang", getLang());
   form.set("image", file, file.name || "screenshot");
-  const res = await request("/api/share", { method: "POST", body: form }, CHECK_TIMEOUT_MS);
+  const res = await request("/api/share", { method: "POST", body: form }, MEDIA_TIMEOUT_MS);
   return (await res.json()) as Verdict;
 }
 
@@ -68,7 +70,7 @@ export async function sendVoice(blob: Blob): Promise<Verdict> {
   form.set("parent_id", getParentId());
   form.set("lang", getLang());
   form.set("audio", blob, blob.type.includes("webm") ? "voice.webm" : "voice");
-  const res = await request("/voice", { method: "POST", body: form }, CHECK_TIMEOUT_MS);
+  const res = await request("/voice", { method: "POST", body: form }, MEDIA_TIMEOUT_MS);
   return (await res.json()) as Verdict;
 }
 
