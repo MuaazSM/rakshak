@@ -111,6 +111,29 @@ def test_p_scam_key_quote_and_value_in_one_token():
     assert detector.p_scam_from_logprobs(lp) == pytest.approx(scam / (scam + safe + susp))
 
 
+def test_glued_quote_token_aware_credits_suspicious():
+    # Qwen pieces: SCAM = SC|AM, SUSPICIOUS = S|US|PIC|IOUS; here the quote is glued to the
+    # first piece. `"S` belongs to SUSPICIOUS only (review: was dropped → P(SCAM) 0.923).
+    lp = [
+        lp_entry('{"verdict":', {'{"verdict":': 1.0}),
+        lp_entry('"SC', {'"SC': 0.60, '"S': 0.35, '"SAFE': 0.05}),
+        lp_entry("AM", {"AM": 1.0}),
+    ]
+    probs = detector.label_probs_from_logprobs(lp, detector.STATIC_LABEL_TOKENS)
+    assert probs == pytest.approx({"SCAM": 0.60, "SUSPICIOUS": 0.35, "SAFE": 0.05})
+
+
+def test_glued_quote_suspicious_sampled_walks_pieces():
+    lp = [
+        lp_entry('{"verdict":', {'{"verdict":': 1.0}),
+        lp_entry('"S', {'"S': 0.7, '"SC': 0.2, '"SAFE': 0.1}),
+        lp_entry("US", {"US": 1.0}),
+        lp_entry("PIC", {"PIC": 1.0}),
+    ]
+    probs = detector.label_probs_from_logprobs(lp, detector.STATIC_LABEL_TOKENS)
+    assert probs == pytest.approx({"SCAM": 0.2, "SUSPICIOUS": 0.7, "SAFE": 0.1})
+
+
 def test_p_scam_spaced_json_like_base_model():
     lp = [
         lp_entry('{"', {'{"': 1.0}),
@@ -258,7 +281,8 @@ async def test_detect_falls_back_to_label_without_logprobs(hub_env):  # noqa: F8
 
 
 @pytest.mark.parametrize(
-    ("verdict", "p_scam", "p_safe"), [("SCAM", 1.0, 0.0), ("SUSPICIOUS", 0.5, 0.0)]
+    ("verdict", "p_scam", "p_safe"),
+    [("SCAM", 1.0, 0.0), ("SUSPICIOUS", 0.0, 0.0), ("SAFE", 0.0, 1.0)],
 )
 async def test_detect_label_fallback_p_safe(hub_env, verdict, p_scam, p_safe):  # noqa: F811
     def handler(request: httpx.Request) -> httpx.Response:

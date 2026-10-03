@@ -12,16 +12,19 @@
    (§7.4 as amended 3 Oct: SCAM if p_scam ≥ T_HIGH; SUSPICIOUS if risk = 1 − p_safe ≥ T_LOW or
    ≥ 2 soft rules).
 3. T_HIGH (on p_scam) = lowest threshold such that the share of gold SAFE ("genuine") items
-   fused to SCAM is ≤ 3%. T_LOW (on risk, T_HIGH fixed) = highest threshold such that scam
-   recall — gold SCAM items fused to SCAM or SUSPICIOUS, incl. the ≥ 2 soft rules path — is
-   ≥ 0.98. Candidates are the observed scores plus 1.0 (thresholds compare with ≥, so every T
-   in (c[j-1], c[j]] behaves like c[j]).
+   fused to SCAM is ≤ 3%. T_LOW (on risk, T_HIGH fixed) = highest threshold such that the
+   items that must be flagged — gold SCAM ∪ gold SUSPICIOUS — are fused to SCAM or SUSPICIOUS
+   (incl. the ≥ 2 soft rules path) at a rate ≥ 0.98. Candidates are the observed scores
+   (T_HIGH also gets 1.0, the region above every score; T_LOW does not, since a threshold above
+   every observed risk is unsupported by dev). Thresholds compare with ≥, so every T in
+   (c[j-1], c[j]] behaves like c[j].
 4. Midpoint rule (§7.4): the edge found in 3 is widened to the interval of thresholds that are
    equivalent on dev — still meeting the target and with the same value of what the edge
    optimizes (T_HIGH: number of gold SCAM fused to SCAM; T_LOW: number of gold SAFE fused to
    SCAM/SUSPICIOUS) — and the midpoint of that interval is used. On separable scores this puts
    T_HIGH halfway between the highest equivalent genuine score and the lowest scam score
-   instead of on a genuine item's score. T_LOW is on risk, so it is not clamped to T_HIGH. If a
+   instead of on a genuine item's score. T_LOW is on risk, so it is not clamped to T_HIGH, but
+   it is capped at 0.5 (never SAFE when P(SAFE) < 0.5; `capped_from` recorded). If a
    target is unreachable the closest candidate is used and `feasible: false` is recorded.
 5. Writes config/thresholds.json (hub.fusion reads only T_HIGH / T_LOW; the rest is provenance)
    and eval/results/calibration_dev.json with full-fusion dev metrics at the chosen thresholds.
@@ -48,7 +51,9 @@ DEV = ROOT / "data" / "splits" / "dev.jsonl"
 RESULTS = ROOT / "eval" / "results"
 THRESHOLDS = ROOT / "config" / "thresholds.json"
 MAX_FPR_GENUINE = 0.03  # §7.4 T_HIGH
-MIN_SCAM_RECALL = 0.98  # §7.4 T_LOW
+MIN_SCAM_RECALL = 0.98  # §7.4 T_LOW: recall over gold SCAM ∪ SUSPICIOUS
+T_LOW_CAP = 0.5  # never SAFE when P(SAFE) < 0.5 (review 3 Oct, §17)
+POSITIVE = frozenset({"SCAM", "SUSPICIOUS"})  # gold labels that must be flagged for T_LOW
 REPORT_METRICS = (
     "n",
     "scam_recall",
@@ -172,29 +177,37 @@ def search_t_high(cases: list[Case], max_fpr: float = MAX_FPR_GENUINE) -> dict:
     }
 
 
-def search_t_low(cases: list[Case], t_high: float, min_recall: float = MIN_SCAM_RECALL) -> dict:
-    """Highest risk threshold (T_HIGH fixed) with SCAM∪SUSPICIOUS recall ≥ min_recall, then the
-    midpoint of the equivalent interval (same gold SAFE flagged count, still ≥ min_recall).
-    Not clamped to T_HIGH: T_LOW is on risk = 1 − P(SAFE) ≥ p_scam, a different score, and the
-    SCAM branch is checked first (PRD §7.4 as amended 3 Oct)."""
-    n_scam = sum(c.label == "SCAM" for c in cases)
-    if not n_scam:
-        return {"value": None, "feasible": False, "reason": "no gold SCAM items on dev"}
+def search_t_low(
+    cases: list[Case],
+    t_high: float,
+    min_recall: float = MIN_SCAM_RECALL,
+    cap: float = T_LOW_CAP,
+) -> dict:
+    """Highest risk threshold (T_HIGH fixed) at which ≥ min_recall of the items that must be
+    flagged — gold SCAM ∪ gold SUSPICIOUS — are fused to SCAM or SUSPICIOUS, then the midpoint
+    of the equivalent interval (same gold SAFE flagged count, still ≥ min_recall), then capped
+    at `cap` (never SAFE when P(SAFE) < 0.5). Candidates are observed risks only (no 1.0
+    sentinel: a threshold above every observed risk is not supported by dev). Not clamped to
+    T_HIGH: risk = 1 − P(SAFE) ≥ p_scam and the SCAM branch is checked first (§7.4 amended)."""
+    n_pos = sum(c.label in POSITIVE for c in cases)
+    if not n_pos:
+        return {"value": None, "feasible": False, "reason": "no gold SCAM/SUSPICIOUS items on dev"}
     if all(c.p_scam is None for c in cases):
         return {"value": None, "feasible": False, "reason": "no detector p_scam on dev"}
-    cands = candidates(c.risk for c in cases)
+    cands = sorted({c.risk for c in cases if c.risk is not None})
     caught = ("SCAM", "SUSPICIOUS")
     sig = []
     for t in cands:
         v = verdicts(cases, t_high, t)
-        r = _count(cases, v, "SCAM", caught) / n_scam
+        flagged = sum(c.label in POSITIVE and x in caught for c, x in zip(cases, v, strict=True))
+        r = flagged / n_pos
         sig.append((r >= min_recall, _count(cases, v, "SAFE", caught), r))
     j = next((k for k in reversed(range(len(cands))) if sig[k][0]), None)
     if j is None:
         out = {
             "value": cands[0],
             "feasible": False,
-            "scam_recall": sig[0][2],
+            "recall_scam_or_suspicious": sig[0][2],
             "reason": f"recall < {min_recall} even at the lowest risk",
         }
     else:
@@ -204,8 +217,12 @@ def search_t_low(cases: list[Case], t_high: float, min_recall: float = MIN_SCAM_
             "feasible": True,
             "edge": cands[j],
             "interval": w["interval"],
-            "scam_recall_at_edge": sig[j][2],
+            "recall_scam_or_suspicious_at_edge": sig[j][2],
         }
+    if out["value"] > cap:
+        out["capped_from"] = out["value"]
+        out["value"] = cap
+        out["note"] = f"capped at {cap}: never SAFE when P(SAFE) < {1 - cap:g}"
     return out
 
 
@@ -382,12 +399,14 @@ def main(argv: list[str] | None = None) -> int:
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(json.dumps(thresholds, indent=2) + "\n", "utf-8")
     tag = "PROVISIONAL (synthetic dev) " if provisional else ""
+    capped = f" (capped from {lo['capped_from']:.4f})" if "capped_from" in lo else ""
     print(
         f"{tag}T_HIGH {t_high:.4f} (p_scam; equivalent interval {hi.get('interval')})"
         f"{'' if hi['feasible'] else ' (target not met)'}\n"
         f"T_LOW {t_low:.4f} (risk = 1 - p_safe; interval {lo.get('interval')})"
         f"{'' if lo['feasible'] else ' (target not met)'}"
-        f"{' (clamped to T_HIGH)' if 'clamped_from' in lo else ''}  n_dev {len(items)}\n"
+        f"{capped}"
+        f"  n_dev {len(items)}\n"
         f"full fusion on dev: recall {_f(m['scam_recall'])} (strict {_f(m['scam_recall_strict'])})  "
         f"FPR genuine {_f(m['fpr_genuine'])}  FPR hard-neg {_f(m['fpr_hard_negative'])}  "
         f"macro-F1 {_f(m['macro_f1'])}  unknown {_f(m['unknown_rate'])}\n"

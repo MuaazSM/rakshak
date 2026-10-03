@@ -171,3 +171,11 @@ def test_risk_falls_back_to_p_scam_without_p_safe():
     assert fusion.risk(det) == 0.0002
     assert fuse(FakeRules.make(), det, TEXT, TH).verdict == "SAFE"
     assert fusion.risk(_with_p_safe(det, 0.25)) == 0.75
+
+
+def test_label_only_suspicious_is_suspicious_not_scam():
+    """No logprobs: detector SUSPICIOUS → p_scam 0, p_safe 0 → risk 1 → SUSPICIOUS even with a
+    low T_HIGH (review 3 Oct, second pass item 5)."""
+    det = _with_p_safe(make_result("SUSPICIOUS", 0.0, category="other_scam"), 0.0)
+    r = fuse(FakeRules.make(), det, TEXT, Thresholds(0.4977, 0.5, True))
+    assert r.verdict == "SUSPICIOUS"

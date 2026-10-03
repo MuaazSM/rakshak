@@ -131,7 +131,9 @@ def label_probs_from_logprobs(
     mass = dict.fromkeys(LABELS, 0.0)
     weight, consumed = 1.0, ""
     consumed_toks: list[str] = []
-    use_tokens = bool(label_tokens) and skip == 0  # a glued quote makes pieces incomparable
+    # A token glued to the opening quote (e.g. `"SC`, skip > 0) is compared to the label pieces
+    # with the `skip` leading chars stripped, so `"S` still credits SUSPICIOUS.
+    use_tokens = bool(label_tokens)
     for i in range(idx, len(logprob_content)):
         entry = logprob_content[i]
         sampled = texts[i]
@@ -155,7 +157,7 @@ def label_probs_from_logprobs(
                     for L in matches
                     if label_tokens[L][:k] == consumed_toks
                     and k < len(label_tokens[L])
-                    and label_tokens[L][k] == tok
+                    and label_tokens[L][k] == tok[cut:]
                 ]
                 matches = by_token or matches
             prob = math.exp(alt.get("logprob", -math.inf))
@@ -166,7 +168,7 @@ def label_probs_from_logprobs(
         if nxt is None:
             break
         weight, consumed = nxt
-        consumed_toks.append(sampled)
+        consumed_toks.append(sampled[cut:])
     total = sum(mass.values())
     if total <= 0:
         return None
@@ -311,8 +313,9 @@ async def detect(
             probs = label_probs_from_logprobs(
                 lp, _LABEL_TOKEN_CACHE.get(_base(url), STATIC_LABEL_TOKENS)
             )
-            if probs is None:  # no logprobs: fall back to the label itself
-                p = {"SCAM": 1.0, "SUSPICIOUS": 0.5, "SAFE": 0.0}[out.verdict]
+            if probs is None:  # no logprobs: fall back to the label itself. SUSPICIOUS gets
+                # p_scam 0 and p_safe 0 (risk 1): fusion says SUSPICIOUS, never SCAM via p_scam.
+                p = {"SCAM": 1.0, "SUSPICIOUS": 0.0, "SAFE": 0.0}[out.verdict]
                 p_safe = {"SCAM": 0.0, "SUSPICIOUS": 0.0, "SAFE": 1.0}[out.verdict]
             else:
                 p, p_safe = probs["SCAM"], probs["SAFE"]
