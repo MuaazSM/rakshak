@@ -250,6 +250,7 @@ def split_groups(
 # --- build-time diversification (breaks format shortcuts) ---------------------------------------
 
 SCREENSHOT_FRACTION = 0.15
+UNKNOWN_SENDER_RATE = 0.5
 _PLACEHOLDERS = re.compile(r"<OTP>|<ACCT>")
 _REF_CONTEXT = re.compile(r"(ref|id|no\.?|number|#|order|संदर्भ|संख्या)\W{0,4}$", re.IGNORECASE)
 _LAST4_CONTEXT = re.compile(r"(xx|\*+|ending( in| with)?|अंतिम|ending)\s*$", re.IGNORECASE)
@@ -305,16 +306,48 @@ def fill_placeholders(item: dict, rng: random.Random) -> dict | None:
     return {**item, "text": apply(0, len(text)), "red_flags": flags}
 
 
-_REF_TAILS = {
-    "SAFE": {
-        "transaction_alert": ["UPI Ref No: {d8_12}", "Ref No: {d8_12}", "A/c XX{d4}", "Txn ID {d10_12}"],
-        "genuine_otp": ["Ref {d6_9}", "Txn ID {d10_12}", "Ref No: {d8_12}"],
-        "delivery_update": ["Order ID {d8_12}", "AWB {d10_12}", "Ref No: {d8_12}", "Tracking ID {d10_12}"],
-        "govt_genuine": ["Ref No: {d8_12}", "Consumer No. {d10_12}", "Ack No {d8_12}", "Case ID {d6_9}"],
-    },
-    "SCAM": ["Ref No: {d8_12}", "A/c XX{d4}", "Case ID {d6_9}", "Txn ID {d10_12}"],
-}  # fmt: skip
-REF_RATE = 0.35
+# One shared pool for every verdict and category, so no id family is tied to a label.
+_REF_TAILS = [
+    "Ref No: {d8_12}", "Ref {d6_9}", "UPI Ref No: {d8_12}", "Txn ID {d10_12}", "A/c XX{d4}",
+    "Order ID {d8_12}", "AWB {d10_12}", "Tracking ID {d10_12}", "Consumer No. {d10_12}",
+    "Ack No {d8_12}", "Case ID {d6_9}",
+]  # fmt: skip
+# Categories where an id suffix reads unnatural (genuine chat and promos).
+_NO_REF = {"personal", "legit_promo"}
+REF_TARGET = 0.40  # target share of texts carrying an id family, per verdict
+_HI_LABEL = "संदर्भ संख्या"
+_ANY_REF = re.compile(
+    r"\bref(erence)?\b|\b(order id|awb|tracking id|consumer no|ack no|case id|txn id|upi ref)|a/c xx\d|"
+    + _HI_LABEL
+    + r"|संदर्भ",
+    re.IGNORECASE,
+)
+
+
+def ref_rates(items: list[dict]) -> dict[str, dict[str, float]]:
+    """Per-verdict suffix rates so the share of texts with an id family (native or appended)
+    reaches `REF_TARGET` for every verdict: Gemma already writes "Reference: ..." into many
+    genuine texts, so appending at one fixed rate would make id endings verdict-dependent. Also
+    returns `hi`: the share of appended Hindi suffixes rendered with the Hindi label, set so the
+    Hindi-label share is equal across verdicts."""
+    by: dict[str, list[dict]] = defaultdict(list)
+    for it in items:
+        by[it["verdict"]].append(it)
+    stat = {}
+    for v, xs in by.items():
+        native = [x for x in xs if _ANY_REF.search(x["text"])]
+        elig = [x for x in xs if x not in native and x["category"] not in _NO_REF]
+        hi_native = sum(1 for x in native if _HI_LABEL in x["text"])
+        elig_hi = sum(1 for x in elig if x["language"] == "hi")
+        stat[v] = (len(xs), len(native), len(elig), hi_native, elig_hi)
+    rates = {"ref": {}, "hi": {}}
+    t_h = max((s[3] / s[0] for s in stat.values()), default=0.0)
+    for v, (n, nat, elig, hi_nat, elig_hi) in stat.items():
+        rate = min(1.0, max(0.0, (REF_TARGET * n - nat) / elig)) if elig else 0.0
+        rates["ref"][v] = rate
+        added_hi = rate * elig_hi
+        rates["hi"][v] = min(1.0, max(0.0, (t_h * n - hi_nat) / added_hi)) if added_hi else 0.0
+    return rates
 
 
 def _tail(pattern: str, rng: random.Random) -> str:
@@ -326,15 +359,12 @@ def _tail(pattern: str, rng: random.Random) -> str:
     )
 
 
-def add_reference(item: dict, rng: random.Random) -> dict:
-    """Append a masked account / reference / order id to a text (quotes stay valid), at the same
-    rate for scam-side and natural genuine categories, so id-style endings do not separate
-    verdicts."""
-    pools = _REF_TAILS["SAFE"].get(item["category"]) if item["verdict"] == "SAFE" else None
-    pool = pools or _REF_TAILS["SCAM"]
-    tail = _tail(rng.choice(pool), rng)
-    if item["language"] == "hi" and tail.startswith("Ref"):
-        tail = f"संदर्भ संख्या: {_digits(rng, 8, 12)}"
+def add_reference(item: dict, rng: random.Random, hi_rate: float = 0.5) -> dict:
+    """Append a masked account / reference / order id to a text (quotes stay valid). Pool,
+    Hindi rewrite and line-break rate are identical for every verdict."""
+    tail = _tail(rng.choice(_REF_TAILS), rng)
+    if item["language"] == "hi" and rng.random() < hi_rate:
+        tail = f"{_HI_LABEL}: {_digits(rng, 8, 12)}"
     sep = "\n" if item["channel"] == "whatsapp" and rng.random() < 0.3 else " "
     return {**item, "text": f"{item['text']}{sep}{tail}"}
 
@@ -345,38 +375,38 @@ _EMOJI = {
     "delivery_update": ["📦", "🚚", "✅"],
 }
 EMOJI_RATE = 0.15
+EMOJI_LEAD_RATE = 0.0  # scam emoji never lead; keep one position distribution for all
 _EMOJI_RE = re.compile("[\U0001f300-\U0001faff\u2600-\u27bf\u2b50\u2b06\u2705\ufe0f]")
 
 
 def add_emoji(item: dict, rng: random.Random) -> dict:
     """Emoji on genuine personal / promo / delivery texts, so emoji is not a scam-only cue."""
     emo = rng.choice(_EMOJI[item["category"]])
-    text = item["text"]
-    if item["category"] == "legit_promo" and rng.random() < 0.5:
-        text = f"{emo} {text}"
-    else:
-        text = f"{text} {emo}"
+    lead = rng.random() < EMOJI_LEAD_RATE
+    text = f"{emo} {item['text']}" if lead else f"{item['text']} {emo}"
     return {**item, "text": text}
 
 
-def diversify(item: dict, seed: int) -> dict | None:
+def diversify(item: dict, seed: int, rates: dict | None = None) -> dict | None:
     """Deterministic per-item (seeded by id) format changes applied at build time; the source
     batch files are never modified:
       * <OTP> / <ACCT> placeholders -> realistic digits (consistent in text and quotes);
-      * ~35% of SCAM, SUSPICIOUS and SAFE (transaction/otp/delivery/govt) texts get a masked
-        account / reference / order id suffix; ~15% of SAFE personal/promo/delivery get an emoji;
+      * ~35% of texts (all verdicts; not SAFE personal/promo) get a masked account / reference /
+        order id suffix drawn from one shared pool; ~15% of SAFE personal/promo/delivery get an emoji;
       * `personal` SAFE senders: 45% phone numbers, 15% unknown, rest contact names; 15% of SAFE
         delivery updates come from a delivery agent's +91 number; a further 20% of
         non-call SCAM/SUSPICIOUS senders become spoofed DLT-style headers;
-      * ~15% of sms / whatsapp items become channel "screenshot" (all verdicts alike)."""
+      * ~15% of sms / whatsapp items become channel "screenshot" (all verdicts alike);
+      * sender -> None ("unknown") for ~50% of items of every verdict and channel."""
     rng = random.Random(f"{seed}|diversify|{item['id']}")
     out = fill_placeholders(item, rng)
     if out is None:
         return None
-    if rng.random() < REF_RATE and (
-        out["verdict"] != "SAFE" or out["category"] in _REF_TAILS["SAFE"]
-    ):
-        out = add_reference(out, rng)
+    rate = (rates or {}).get("ref", {}).get(out["verdict"], REF_TARGET)
+    hi_rate = (rates or {}).get("hi", {}).get(out["verdict"], 0.5)
+    draw = rng.random()  # always drawn, so the random stream does not depend on eligibility
+    if draw < rate and out["category"] not in _NO_REF and not _ANY_REF.search(out["text"]):
+        out = add_reference(out, rng, hi_rate)
     if out["verdict"] == "SAFE" and out["category"] in _EMOJI and rng.random() < EMOJI_RATE:
         out = add_emoji(out, rng)
     if out["verdict"] == "SAFE":
@@ -400,7 +430,31 @@ def diversify(item: dict, seed: int) -> dict | None:
         out = {**out, "sender": f"{head}-{tail}"}
     if out["channel"] in ("sms", "whatsapp") and rng.random() < SCREENSHOT_FRACTION:
         out = {**out, "channel": "screenshot"}
+    if rng.random() < UNKNOWN_SENDER_RATE:  # the PWA / share paths never send a sender
+        return {**out, "sender": None}
+    # Kept senders must not be "unknown" either (Gemma's invented names, "unknown"): that would
+    # make unknown a scam cue again. Genuine `personal` contact names are legitimately unknown.
+    if sender_status(out["sender"]) == "unknown" and out["category"] != "personal":
+        if rng.random() < 0.7:
+            out = {
+                **out,
+                "sender": f"+91 {rng.choice('6789')}{_digits(rng, 4, 4)} {rng.randrange(10**5):05d}",
+            }
+        else:
+            head = "".join(rng.choices("ABCDEFGHIJKLMNOPRSTUVW", k=2))
+            tail = "".join(rng.choices("ABCDEFGHIKLMNOPRSTUVY", k=6))
+            out = {**out, "sender": f"{head}-{tail}"}
     return out
+
+
+_SUFFIX_FAMILIES = {
+    "ref": re.compile(r"\bref(erence)?\b", re.IGNORECASE),
+    "order/awb/track": re.compile(r"\b(order id|awb|tracking id)\b", re.IGNORECASE),
+    "consumer/ack/case": re.compile(r"\b(consumer no|ack no|case id)\b", re.IGNORECASE),
+    "txn/upi": re.compile(r"\b(txn id|upi ref)", re.IGNORECASE),
+    "a/c xx": re.compile(r"a/c xx\d", re.IGNORECASE),
+    "hindi_ref": re.compile("संदर्भ संख्या"),
+}
 
 
 def shortcut_report(examples: list[dict]) -> dict[str, dict[str, dict[str, float]]]:
@@ -416,6 +470,12 @@ def shortcut_report(examples: list[dict]) -> dict[str, dict[str, dict[str, float
         digit = sum(bool(re.search(r"\d{4,}", b)) for b in bodies)
         url = sum(bool(extract_urls(b)) for b in bodies)
         emoji = sum(bool(_EMOJI_RE.search(b)) for b in bodies)
+        lead = sum(bool(_EMOJI_RE.match(b)) for b in bodies)
+        fam = {
+            name: round(sum(bool(rx.search(b)) for b in bodies) / len(bodies), 2)
+            for name, rx in _SUFFIX_FAMILIES.items()
+        }
+        fam["any"] = round(sum(bool(_ANY_REF.search(b)) for b in bodies) / len(bodies), 2)
         n = len(xs)
         rep[v] = {
             "n": n,
@@ -424,6 +484,8 @@ def shortcut_report(examples: list[dict]) -> dict[str, dict[str, dict[str, float
             "digit_run": round(digit / n, 2),
             "has_url": round(url / n, 2),
             "has_emoji": round(emoji / n, 2),
+            "leading_emoji": round(lead / n, 2),
+            "suffix": fam,
         }
     return rep
 
@@ -537,8 +599,9 @@ def build(
     if test_index is not None and any(test_index.similar(it["text"]) for it in [*train_d, *dev]):
         raise BuildError("leakage: a train/dev item is >= 0.8 similar to a test item")
     rng = random.Random(seed)
-    train_d = [x for x in (diversify(it, seed) for it in train_d) if x is not None]
-    dev = [x for x in (diversify(it, seed) for it in dev) if x is not None]
+    rates = ref_rates(pool)
+    train_d = [x for x in (diversify(it, seed, rates) for it in train_d) if x is not None]
+    dev = [x for x in (diversify(it, seed, rates) for it in dev) if x is not None]
     train_ex = [render(it, "train", dropout=dropout, seed=seed) for it in train_d]
     rng.shuffle(train_ex)
     dev_ex = [render(it, "dev", dropout=dropout, seed=seed) for it in dev]
@@ -551,7 +614,18 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--redacted", type=Path, default=Path("data/redacted"))
     ap.add_argument("--labels", type=Path, default=Path("data/redacted/_labels.jsonl"))
     ap.add_argument("--seeds", type=Path, default=Path("data/seeds/seeds.jsonl"))
-    ap.add_argument("--out", type=Path, default=Path("data/splits"))
+    ap.add_argument(
+        "--out",
+        type=Path,
+        default=Path("data/splits"),
+        help="output dir (use var/build_trial for trials)",
+    )
+    ap.add_argument(
+        "--test-dir",
+        type=Path,
+        default=Path("data/splits"),
+        help="dir holding the frozen test.jsonl (read for leakage hashing only)",
+    )
     ap.add_argument("--dev-per-stratum", type=int, default=8)
     ap.add_argument("--dev-max-per-group", type=int, default=8)
     ap.add_argument("--dropout", type=float, default=0.2)
@@ -565,7 +639,7 @@ def main(argv: list[str] | None = None) -> int:
         print("error: no synthetic or redacted items found", file=sys.stderr)
         return 2
 
-    test_path = args.out / "test.jsonl"
+    test_path = args.test_dir / "test.jsonl"
     test_index = load_test_index(test_path) if test_path.exists() else None
     if test_index is None:
         print(
@@ -626,7 +700,7 @@ def main(argv: list[str] | None = None) -> int:
     for name, ex in (("train", train), ("dev", dev)):
         for v, r in shortcut_report(ex).items():
             print(
-                f"[{name}] {v:<10} n={r['n']} channel={r['channel']} sender={r['sender_status']} digits={r['digit_run']} url={r['has_url']} emoji={r['has_emoji']}"
+                f"[{name}] {v:<10} n={r['n']} channel={r['channel']} sender={r['sender_status']} digits={r['digit_run']} url={r['has_url']} emoji={r['has_emoji']} lead_emoji={r['leading_emoji']} suffix={r['suffix']}"
             )
     print(f"wrote {args.out / 'splits.lock.json'}")
     return 0

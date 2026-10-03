@@ -161,7 +161,7 @@ def run_main(tmp_path, extra=()):
     (syn / "batch1.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows))
     (syn / "review_batch1.jsonl").write_text(json.dumps(rows[0]) + "\n")  # must be ignored
     out = tmp_path / "splits"
-    argv = ["--synthetic", str(syn), "--redacted", str(tmp_path / "none"), "--out", str(out),
+    argv = ["--synthetic", str(syn), "--redacted", str(tmp_path / "none"), "--out", str(out), "--test-dir", str(out),
             "--seeds", str(tmp_path / "noseeds.jsonl"), "--dev-per-stratum", "4",
             "--dev-max-per-group", "4", *extra]  # fmt: skip
     return bd.main(argv), out
@@ -282,3 +282,60 @@ def test_shortcut_report_has_url_and_emoji_shares():
     rep = bd.shortcut_report(train)
     assert {"has_url", "has_emoji", "digit_run"} <= set(rep["SCAM"])
     assert rep["SCAM"]["has_url"] > 0
+
+
+def test_unknown_sender_is_label_independent():
+    scam = [item(i, "a", distinct_text("u", i)) for i in range(1, 401)]
+    safe = [
+        item(i, "b", "Rs 480 debited from your account.", "SAFE", "transaction_alert")
+        for i in range(1000, 1400)
+    ]
+    for group in (scam, safe):
+        out = [bd.diversify(it, 9) for it in group]
+        share = sum(x["sender"] is None for x in out) / len(out)
+        assert 0.43 < share < 0.57
+    # kept senders are never "unknown"-status junk names for scam-side items
+    junk = [
+        {**item(i, "a", distinct_text("j", i)), "sender": "BankAlert"} for i in range(2000, 2200)
+    ]
+    out = [bd.diversify(it, 9) for it in junk]
+    assert all(x["sender"] is None or bd.sender_status(x["sender"]) != "unknown" for x in out)
+
+
+def test_reference_pool_and_hindi_rewrite_are_verdict_independent():
+    import random
+
+    for verdict, cat in (("SCAM", "courier_parcel"), ("SAFE", "delivery_update")):
+        it = item(1, "g", "x", verdict, cat)
+        it["language"] = "hi"
+        tails = {bd.add_reference(it, random.Random(i), hi_rate=0.5)["text"] for i in range(300)}
+        assert any(t.startswith("x संदर्भ संख्या:") for t in tails)
+        assert any("AWB" in t or "Order ID" in t or "Ref" in t for t in tails)
+    # no leading emoji for any category; one position distribution
+    for cat in ("personal", "legit_promo", "delivery_update"):
+        it = item(2, "g", "Hello there", "SAFE", cat)
+        assert all(
+            not bd._EMOJI_RE.match(bd.add_emoji(it, random.Random(i))["text"]) for i in range(100)
+        )
+
+
+def test_ref_rates_equalize_share_with_native_ids():
+    scam = [item(i, "a", distinct_text("r", i)) for i in range(1, 201)]
+    safe = [
+        item(
+            i,
+            "b",
+            f"Rs 480 debited. Reference: <ACCT> {i}" if i % 4 == 0 else f"Rs 480 debited {i}",
+            "SAFE",
+            "transaction_alert",
+        )
+        for i in range(500, 700)
+    ]
+    rates = bd.ref_rates(scam + safe)
+    assert (
+        rates["ref"]["SAFE"] < rates["ref"]["SCAM"]
+    )  # a quarter of SAFE already carries a reference
+    out_safe = [bd.diversify(it, 4, rates) for it in safe]
+    out_scam = [bd.diversify(it, 4, rates) for it in scam]
+    share = lambda xs: sum(bool(bd._ANY_REF.search(x["text"])) for x in xs) / len(xs)  # noqa: E731
+    assert abs(share(out_safe) - share(out_scam)) < 0.15
