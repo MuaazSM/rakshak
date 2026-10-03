@@ -578,12 +578,190 @@ def finalize_item(item: dict, *, strict: bool = False) -> dict | None:
     return item
 
 
+def redraw_call_sender(item: dict) -> dict:
+    """Gemma writes one caller number for every call (+91 98765 43210); draw varied ones:
+    mostly mobile numbers, some toll-free for institutional callbacks, some withheld."""
+    rng = random.Random(f"{BUILD_SEED}|callsender|{item['meta']['key']}")
+    r = rng.random()
+    institutional = item["category"] in ("transaction_alert", "govt_genuine", "legit_promo")
+    if institutional and item["verdict"] == "SAFE" and r < 0.4:
+        item["sender"] = f"1800 {rng.randrange(100, 999)} {rng.randrange(1000, 9999)}"
+    elif r < 0.12:
+        item["sender"] = "unknown"
+    else:
+        item["sender"] = (
+            f"+91 {rng.choice('6789')}{rng.randrange(10**4):04d} {rng.randrange(10**5):05d}"
+        )
+    return item
+
+
 def repair_file(path: Path) -> dict[str, int]:
     """Apply `finalize_item` to an existing batch file in place (idempotent)."""
     items = read_items(path)
-    out = [x for x in (finalize_item(i) for i in items) if x is not None]
+    out = [
+        redraw_call_sender(i)
+        if i["meta"]["key"].startswith(CALL_GROUP_PREFIX)
+        else finalize_item(i)
+        for i in items
+    ]
+    out = [x for x in out if x is not None]
     path.write_text("".join(json.dumps(i, ensure_ascii=False) + "\n" for i in out), "utf-8")
     return {"before": len(items), "after": len(out)}
+
+
+# --- call descriptions without seeds (genuine / ambiguous calls) -----------------------------
+
+# Scam seeds were the only call_description items, so "channel = call_description" would
+# separate verdicts. These specs drive P3-hardneg-style prompts with no seed text (PRD §17).
+# (id, verdict, category, scenario, reasons for SUSPICIOUS flags)
+CALL_SPECS = [
+    ("c1", "SAFE", "transaction_alert",
+     "the bank's genuine customer care called back about a debit card the person had earlier asked "
+     "to block; the caller only confirmed the card is blocked and a new one will be posted, and said "
+     "the bank never asks for OTP, PIN or CVV on a call", ()),
+    ("c2", "SAFE", "delivery_update",
+     "a delivery agent called to ask for a landmark or directions to the house and said he will "
+     "arrive in about ten minutes; he asked for nothing else", ()),
+    ("c3", "SAFE", "govt_genuine",
+     "the electricity board's recorded call announced a scheduled maintenance power cut tomorrow "
+     "between 10 AM and 1 PM in the area; nothing was asked", ()),
+    ("c4", "SAFE", "personal",
+     "a relative called from a new number because their phone is being repaired, said they reached "
+     "home safely and just wanted to chat; no money, code or favour asked", ()),
+    ("c5", "SAFE", "legit_promo",
+     "a telecom operator's customer care called to mention a new recharge plan and asked whether the "
+     "person would like to hear details later; nothing else asked", ()),
+    ("c6", "SAFE", "govt_genuine",
+     "the gas agency called to say the cylinder delivery is scheduled for tomorrow morning and to "
+     "keep the old empty cylinder ready; no payment or code asked on the call", ()),
+    ("c7", "SAFE", "transaction_alert",
+     "bank branch staff called to remind that the account KYC is due and asked the person to visit "
+     "the branch with ID proof this month; they said not to share any details on the phone", ()),
+    ("c8", "SUSPICIOUS", "other_scam",
+     "an unknown caller asked whether this is the account holder's number, said he will call back "
+     "later and hung up; he asked for nothing", ("impersonates_authority", "urgency_deadline")),
+    ("c9", "SUSPICIOUS", "other_scam",
+     "a caller said he is from an insurance company and mentioned a special scheme, asking the person "
+     "to call back on a number if interested; no payment or code asked", ("impersonates_authority", "too_good_to_be_true")),
+    ("c10", "SUSPICIOUS", "other_scam",
+     "a caller said he is doing a survey for the bank and wanted a good time to call again; no "
+     "payment, code or link asked", ("impersonates_authority", "urgency_deadline")),
+]  # fmt: skip
+CALL_GROUP_PREFIX = "calls-"
+
+
+def call_prompt(spec: tuple, language: str, detail: str) -> str:
+    _, verdict, _, scenario, reasons = spec
+    flags = (
+        ', "red_flags": [{"quote": "<exact substring of text>", "reason": "<one of: '
+        + ", ".join(reasons)
+        + '>"}]'
+        if verdict == "SUSPICIOUS"
+        else ""
+    )
+    return (
+        "You are helping build a dataset to protect elderly people in India from scams.\n"
+        "Write a realistic CALL DESCRIPTION: 1-3 short sentences by the person who took a phone call, "
+        "summarising what the caller said, in the past tense (for example 'Caller said ...').\n"
+        f"Language/style: {LANGUAGE_DESC[language]}\n"
+        f"What happened: {scenario}.\n"
+        "The call must NOT ask the person to share an OTP or PIN, pay money, click a link or install an app.\n"
+        f"{detail}\n"
+        'Return JSON only: {"text": "<description>", "sender": "<caller number such as +91 98xxx xxxxx '
+        f'or a toll-free number like 1800 xxx xxxx>"{flags}'
+        "}"
+    )
+
+
+def accept_call_response(obj: dict | None, spec: tuple) -> dict | None:
+    if not obj or not isinstance(obj.get("text"), str):
+        return None
+    _, verdict, _, _, reasons = spec
+    norm = normalize_text(obj["text"])
+    if not 8 <= len(norm) <= 500 or _PLACEHOLDER.search(norm):
+        return None
+    sender = obj.get("sender")
+    sender = normalize_text(sender) if isinstance(sender, str) else ""
+    if not sender or sender_status(sender) == "registered":
+        sender = "unknown"
+    n = normalize(norm, None if sender == "unknown" else sender)
+    sig = evaluate(n)
+    if sig.hard or n.urls or (set(sig.soft) - {"unregistered_sender"}):
+        return None  # a genuine or ambiguous call must stay free of ask/link signals
+    flags: list[dict] = []
+    if verdict == "SUSPICIOUS":
+        flags = clean_flags(obj, norm, set(reasons)) or []
+        if not flags:
+            return None
+    return {"text": norm, "sender": sender, "red_flags": flags}
+
+
+async def generate_calls(
+    complete: Complete,
+    out_path: Path,
+    *,
+    per_spec: int = 8,
+    concurrency: int = 4,
+    log: Callable[[str], None] = print,
+) -> dict[str, int]:
+    """One batch of seedless call descriptions; resumable by key, like `generate`."""
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    done = {it["meta"]["key"] for it in read_items(out_path)}
+    sem, stats = asyncio.Semaphore(concurrency), Counter()
+
+    async def one(spec: tuple, n: int, fh) -> None:
+        sid, verdict, category = spec[0], spec[1], spec[2]
+        key = f"{CALL_GROUP_PREFIX}{sid}/{n}"
+        if key in done:
+            stats["resumed"] += 1
+            return
+        rng = random.Random(f"{BUILD_SEED}|{key}")
+        language = LANGUAGES[(n + int(sid[1:])) % 3]
+        prompt = call_prompt(spec, language, hints(rng, scam=False))
+        async with sem:
+            got = None
+            for _ in range(MAX_RETRIES + 1):
+                try:
+                    raw = await complete(prompt)
+                except (httpx.TransportError, httpx.HTTPStatusError, KeyError, ValueError):
+                    await asyncio.sleep(2)
+                    continue
+                got = accept_call_response(parse_json(raw), spec)
+                if got:
+                    break
+        if not got:
+            stats["dropped"] += 1
+            return
+        item = {
+            "id": f"syn-{CALL_GROUP_PREFIX}{sid}-{n}",
+            "text": got["text"],
+            "sender": got["sender"],
+            "channel": "call_description",
+            "verdict": verdict,
+            "category": category,
+            "red_flags": got["red_flags"],
+            "language": relabel_language(language, got["text"]),
+            "meta": {
+                "requested_language": language,
+                "source": "synthetic",
+                "seed_group": f"{CALL_GROUP_PREFIX}{sid}",
+                "scenario": n,
+                "variant": 0,
+                "key": key,
+                "obfuscation": "none",
+                "obfuscated": False,
+                "hard_negative": is_hard_negative(category, verdict, got["text"]),
+                "generator": GENERATOR,
+            },
+        }
+        fh.write(json.dumps(redraw_call_sender(item), ensure_ascii=False) + "\n")
+        fh.flush()
+        stats["generated"] += 1
+
+    with out_path.open("a", encoding="utf-8") as fh:
+        await asyncio.gather(*(one(sp, n, fh) for n in range(per_spec) for sp in CALL_SPECS))
+    log(f"calls: {len(done) + stats['generated']} items total")
+    return dict(stats)
 
 
 # --- sanity pass over the review sample -------------------------------------------------------
@@ -710,6 +888,19 @@ async def amain(args: argparse.Namespace) -> int:
     from hub.settings import get_settings
 
     cfg = get_settings()
+    if args.calls:
+        out_path = args.out / f"{args.batch_id}.jsonl"
+        async with httpx.AsyncClient(timeout=httpx.Timeout(600.0)) as client:
+            complete = make_complete(cfg.ollama_host, cfg.gemma_model, client)
+            stats = await generate_calls(
+                complete, out_path, per_spec=args.per_spec, concurrency=args.concurrency
+            )
+        items = read_items(out_path)
+        write_review(items, args.out / f"review_{args.batch_id}.jsonl")
+        print(f"calls items={len(items)} run={stats}")
+        for key, c in counts(items).items():
+            print(f"  {key:<14} " + "  ".join(f"{k}={v}" for k, v in c.items()))
+        return 0
     seeds = load_seeds(args.seeds)
     if args.only_categories:
         keep = set(args.only_categories.split(","))
@@ -748,6 +939,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--scenarios", type=int, default=5)
     ap.add_argument("--variants", type=int, default=5)
     ap.add_argument("--concurrency", type=int, default=4)
+    ap.add_argument(
+        "--calls", action="store_true", help="generate the seedless call-description batch"
+    )
+    ap.add_argument("--per-spec", type=int, default=8)
     ap.add_argument("--only-categories", help="comma-separated seed categories to (re)generate")
     ap.add_argument("--until", help="stop starting new generations at local HH:MM")
     ap.add_argument(

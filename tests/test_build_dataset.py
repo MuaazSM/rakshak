@@ -200,3 +200,54 @@ def test_refuses_to_write_test_jsonl(tmp_path):
     with pytest.raises(bd.BuildError):
         bd.write_split(tmp_path / "test.jsonl", b"{}\n")
     assert not (tmp_path / "test.jsonl").exists()
+
+
+def test_fill_placeholders_consistent_in_text_and_quotes():
+    import random
+
+    it = item(
+        1, "g", "Code <OTP> for A/c XX<ACCT>. Ref <ACCT>. Share it now", "SAFE", "genuine_otp"
+    )
+    out = bd.fill_placeholders(it, random.Random(1))
+    assert "<" not in out["text"] and out["text"].startswith("Code ")
+    code = out["text"].split()[1]
+    assert code.isdigit() and 4 <= len(code) <= 6
+    assert out["text"].split("XX")[1][:4].isdigit()
+    scam = item(
+        2, "g", "Send <OTP> now", flags=[{"quote": "Send <OTP>", "reason": "asks_otp_or_pin"}]
+    )
+    got = bd.fill_placeholders(scam, random.Random(2))
+    assert got["red_flags"][0]["quote"] in got["text"] and "<" not in got["red_flags"][0]["quote"]
+    cut = item(
+        3, "g", "Use <OTP> today", flags=[{"quote": "OTP> today", "reason": "urgency_deadline"}]
+    )
+    assert bd.fill_placeholders(cut, random.Random(3)) is None  # only flag cut a placeholder
+
+
+def test_diversify_is_deterministic_and_keeps_quotes_valid():
+    items = [item(i, f"g{i}", distinct_text("d", i)) for i in range(1, 301)]
+    a = [bd.diversify(it, 5) for it in items]
+    assert a == [bd.diversify(it, 5) for it in items]
+    assert all(x["red_flags"][0]["quote"] in x["text"] for x in a)
+    shots = sum(x["channel"] == "screenshot" for x in a)
+    assert 0.08 < shots / len(a) < 0.25
+    with_ref = sum(len(x["text"]) > len(y["text"]) for x, y in zip(a, items, strict=True))
+    assert 0.2 < with_ref / len(a) < 0.5
+    safe = [item(i, "s", "Hi mama, home safe", "SAFE", "personal") for i in range(400, 700)]
+    out = [bd.diversify(it, 5) for it in safe]
+    assert {x["sender"] is None for x in out} == {True, False}
+    assert any(x["sender"] and x["sender"].startswith("+91") for x in out)
+
+
+def test_build_leaves_no_placeholders_and_reports_shortcuts():
+    p = pool()
+    for it in p:
+        if it["verdict"] == "SAFE":
+            it["text"] += " A/c XX<ACCT> code <OTP>"
+    train, dev, _ = bd.build(p, test_index=None, dev_per_stratum=4, dev_max_per_group=4)
+    assert not any(
+        "<OTP>" in e["messages"][1]["content"] or "<ACCT>" in e["messages"][1]["content"]
+        for e in train + dev
+    )
+    rep = bd.shortcut_report(train)
+    assert set(rep) == {"SAFE", "SCAM"} and rep["SAFE"]["digit_run"] > 0.9

@@ -2,6 +2,7 @@
 data/raw/
 data/redacted/
 data/splits/*.jsonl
+data/synthetic/*.jsonl
 var/
 media/
 models/

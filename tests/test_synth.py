@@ -300,3 +300,59 @@ def test_finalize_item_repairs_sender_and_category():
     assert again["sender"] == fixed["sender"] and again["category"] == fixed["category"]
     scam = synth.finalize_item(make("kyc_account_block", "Pay now", "+91 7890 123456", "SCAM"))
     assert scam["sender"] != "+91 7890 123456"
+
+
+def test_call_responses_and_sender_redraw():
+    spec = next(sp for sp in synth.CALL_SPECS if sp[0] == "c1")
+    ok = {"text": "Caller said the bank confirmed my card is blocked.", "sender": "+91 98765 43210"}
+    got = synth.accept_call_response(ok, spec)
+    assert got and got["red_flags"] == []
+    asks = {"text": "Caller said to share the OTP to confirm the block.", "sender": "1800 123 4567"}
+    assert synth.accept_call_response(asks, spec) is None
+    assert synth.accept_call_response({**ok, "text": "Open http://x-bank.in now"}, spec) is None
+    susp = next(sp for sp in synth.CALL_SPECS if sp[1] == "SUSPICIOUS")
+    flags = [{"quote": "survey for the bank", "reason": "impersonates_authority"}]
+    sus_ok = {
+        "text": "Caller did a survey for the bank and will call later.",
+        "sender": "x",
+        "red_flags": flags,
+    }
+    assert synth.accept_call_response(sus_ok, susp)["red_flags"] == flags
+    assert synth.accept_call_response({**sus_ok, "red_flags": []}, susp) is None
+    item = {
+        "category": "personal",
+        "verdict": "SAFE",
+        "sender": "+91 98765 43210",
+        "meta": {"key": "calls-c4/1"},
+    }
+    assert synth.redraw_call_sender(
+        dict(item),
+    ) == synth.redraw_call_sender(dict(item))
+
+
+def test_generate_calls_writes_call_description_items(tmp_path):
+    async def complete(prompt: str) -> str:
+        if "red_flags" in prompt:
+            return json.dumps(
+                {
+                    "text": "Caller did a survey for the bank, will call again.",
+                    "sender": "x",
+                    "red_flags": [
+                        {"quote": "survey for the bank", "reason": "impersonates_authority"}
+                    ],
+                }
+            )
+        return json.dumps(
+            {"text": "Caller said the maintenance cut is tomorrow.", "sender": "+91 98765 43210"}
+        )
+
+    out = tmp_path / "b2.jsonl"
+    stats = asyncio.run(synth.generate_calls(complete, out, per_spec=1, log=lambda _: None))
+    items = synth.read_items(out)
+    assert stats["generated"] == len(items) == len(synth.CALL_SPECS)
+    assert {i["channel"] for i in items} == {"call_description"}
+    assert {i["verdict"] for i in items} == {"SAFE", "SUSPICIOUS"}
+    assert all(i["meta"]["seed_group"].startswith("calls-") for i in items)
+    assert asyncio.run(synth.generate_calls(complete, out, per_spec=1, log=lambda _: None))[
+        "resumed"
+    ] == len(items)

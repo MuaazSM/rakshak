@@ -24,6 +24,7 @@ import argparse
 import hashlib
 import json
 import random
+import re
 import subprocess
 import sys
 from collections import Counter, defaultdict
@@ -33,7 +34,7 @@ from pathlib import Path
 from datasketch import MinHash, MinHashLSH
 
 from hub.detector import chat_example
-from hub.normalize import normalize_text
+from hub.normalize import normalize_text, sender_status
 from hub.rules import rule_signals
 from hub.schemas import DetectorOutput
 from training.label import REAL_SOURCES, load_items, load_labels
@@ -246,6 +247,141 @@ def split_groups(
     return train, sorted(dev, key=lambda x: x["id"]), sorted(dev_groups)
 
 
+# --- build-time diversification (breaks format shortcuts) ---------------------------------------
+
+SCREENSHOT_FRACTION = 0.15
+_PLACEHOLDERS = re.compile(r"<OTP>|<ACCT>")
+_REF_CONTEXT = re.compile(r"(ref|id|no\.?|number|#|order|संदर्भ|संख्या)\W{0,4}$", re.IGNORECASE)
+_LAST4_CONTEXT = re.compile(r"(xx|\*+|ending( in| with)?|अंतिम|ending)\s*$", re.IGNORECASE)
+
+
+def _digits(rng: random.Random, lo: int, hi: int) -> str:
+    n = rng.randint(lo, hi)
+    return str(rng.randint(1, 9)) + "".join(rng.choice("0123456789") for _ in range(n - 1))
+
+
+def _replacement(token: str, before: str, rng: random.Random) -> str:
+    """A realistic value for one redaction placeholder, chosen from its left context."""
+    if token == "<OTP>":
+        return _digits(rng, 4, 6)
+    if _LAST4_CONTEXT.search(before):
+        return _digits(rng, 4, 4)
+    if _REF_CONTEXT.search(before):
+        return _digits(rng, 6, 12)
+    return rng.choice([f"XX{_digits(rng, 4, 4)}", f"**{_digits(rng, 4, 4)}", _digits(rng, 6, 12)])
+
+
+def fill_placeholders(item: dict, rng: random.Random) -> dict | None:
+    """Replace <OTP> / <ACCT> with realistic digits, in the text and (consistently) in every
+    red-flag quote. A flag whose quote only partly overlaps a placeholder is dropped; None if a
+    SCAM/SUSPICIOUS item has no flag left. The hub does not redact at runtime, so training on
+    placeholders would teach "placeholder -> SAFE"."""
+    text = item["text"]
+    spans = []
+    for m in _PLACEHOLDERS.finditer(text):
+        spans.append((m.start(), m.end(), _replacement(m.group(0), text[: m.start()][-14:], rng)))
+    if not spans:
+        return item
+
+    def apply(lo: int, hi: int) -> str | None:
+        out, pos = [], lo
+        for a, b, rep in spans:
+            if b <= lo or a >= hi:
+                continue
+            if a < lo or b > hi:
+                return None  # quote cuts through a placeholder
+            out += [text[pos:a], rep]
+            pos = b
+        return "".join(out) + text[pos:hi]
+
+    flags = []
+    for f in item["red_flags"]:
+        start = text.find(f["quote"])
+        new_q = apply(start, start + len(f["quote"])) if start >= 0 else None
+        if new_q:
+            flags.append({"quote": new_q, "reason": f["reason"]})
+    if item["verdict"] != "SAFE" and not flags:
+        return None
+    return {**item, "text": apply(0, len(text)), "red_flags": flags}
+
+
+def add_reference(item: dict, rng: random.Random) -> dict:
+    """Append a masked account / reference number to a scam-side text (quotes stay valid), so
+    digit-run formats are not tied to SAFE."""
+    hi = item["language"] == "hi"
+    tail = rng.choice(
+        [
+            f"Ref No: {_digits(rng, 8, 12)}",
+            f"A/c XX{_digits(rng, 4, 4)}",
+            f"Case ID {_digits(rng, 6, 9)}",
+            f"Txn ID {_digits(rng, 10, 12)}",
+        ]
+    )
+    if hi and tail.startswith("Ref"):
+        tail = f"संदर्भ संख्या: {_digits(rng, 8, 12)}"
+    sep = "\n" if item["channel"] == "whatsapp" and rng.random() < 0.3 else " "
+    return {**item, "text": f"{item['text']}{sep}{tail}"}
+
+
+def diversify(item: dict, seed: int) -> dict | None:
+    """Deterministic per-item (seeded by id) format changes applied at build time; the source
+    batch files are never modified:
+      * <OTP> / <ACCT> placeholders -> realistic digits (consistent in text and quotes);
+      * ~35% of SCAM and ~35% of SUSPICIOUS texts get a masked account / reference number;
+      * `personal` SAFE senders: 45% phone numbers, 15% unknown, rest contact names; 15% of SAFE
+        delivery updates come from a delivery agent's +91 number; a further 20% of
+        non-call SCAM/SUSPICIOUS senders become spoofed DLT-style headers;
+      * ~15% of sms / whatsapp items become channel "screenshot" (all verdicts alike)."""
+    rng = random.Random(f"{seed}|diversify|{item['id']}")
+    out = fill_placeholders(item, rng)
+    if out is None:
+        return None
+    if out["verdict"] != "SAFE" and rng.random() < 0.35:
+        out = add_reference(out, rng)
+    if out["verdict"] == "SAFE":
+        phone = f"+91 {rng.choice('6789')}{_digits(rng, 4, 4)} {rng.randrange(10**5):05d}"
+        r = rng.random()
+        if out["category"] == "personal" and out["channel"] != "call_description":
+            out = {**out, "sender": phone if r < 0.45 else None if r < 0.60 else out["sender"]}
+        elif (
+            out["category"] == "delivery_update"
+            and out["channel"] != "call_description"
+            and r < 0.15
+        ):
+            out = {**out, "sender": phone}
+    elif (
+        out["channel"] != "call_description"
+        and sender_status(out["sender"]) != "registered"
+        and rng.random() < 0.20
+    ):  # scam side: a further 20% of senders spoof a DLT-style header
+        head = "".join(rng.choices("ABCDEFGHIJKLMNOPRSTUVW", k=2))
+        tail = "".join(rng.choices("ABCDEFGHIKLMNOPRSTUVY", k=6))
+        out = {**out, "sender": f"{head}-{tail}"}
+    if out["channel"] in ("sms", "whatsapp") and rng.random() < SCREENSHOT_FRACTION:
+        out = {**out, "channel": "screenshot"}
+    return out
+
+
+def shortcut_report(examples: list[dict]) -> dict[str, dict[str, dict[str, float]]]:
+    """Per verdict: share of items by channel and sender status, and share containing a 4+
+    digit run. Counts only (no text), for the "no trivial separator" check."""
+    rep: dict = {}
+    for v in sorted({e["meta"]["verdict"] for e in examples}):
+        xs = [e for e in examples if e["meta"]["verdict"] == v]
+        users = [e["messages"][1]["content"] for e in xs]
+        status = Counter(re.search(r"SENDER: .*\((\w+)\)\n", u).group(1) for u in users)
+        chan = Counter(re.match(r"CHANNEL: (\w+)", u).group(1) for u in users)
+        digit = sum(bool(re.search(r"\d{4,}", u.split("MESSAGE:\n", 1)[1])) for u in users)
+        n = len(xs)
+        rep[v] = {
+            "n": n,
+            "channel": {k: round(c / n, 2) for k, c in sorted(chan.items())},
+            "sender_status": {k: round(c / n, 2) for k, c in sorted(status.items())},
+            "digit_run": round(digit / n, 2),
+        }
+    return rep
+
+
 # --- render ----------------------------------------------------------------------------------
 
 
@@ -355,6 +491,8 @@ def build(
     if test_index is not None and any(test_index.similar(it["text"]) for it in [*train_d, *dev]):
         raise BuildError("leakage: a train/dev item is >= 0.8 similar to a test item")
     rng = random.Random(seed)
+    train_d = [x for x in (diversify(it, seed) for it in train_d) if x is not None]
+    dev = [x for x in (diversify(it, seed) for it in dev) if x is not None]
     train_ex = [render(it, "train", dropout=dropout, seed=seed) for it in train_d]
     rng.shuffle(train_ex)
     dev_ex = [render(it, "dev", dropout=dropout, seed=seed) for it in dev]
@@ -426,6 +564,7 @@ def main(argv: list[str] | None = None) -> int:
             "rule_signal_dropout_train": args.dropout,
             "minhash": f"char {SHINGLE}-grams, Jaccard >= {JACCARD}",
             "invalid_dropped": bad_syn + bad_real,
+            "diversify": "placeholders->digits, scam refs 35%, safe phone senders, screenshot 15%",
             **stats,
         }
     }
@@ -438,6 +577,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[{name}] sha256 {entries[name]['sha256'][:12]}…")
         for key, c in entries[name]["counts"].items():
             print(f"  {key:<13} " + "  ".join(f"{k}={v}" for k, v in c.items()))
+    for name, ex in (("train", train), ("dev", dev)):
+        for v, r in shortcut_report(ex).items():
+            print(
+                f"[{name}] {v:<10} n={r['n']} channel={r['channel']} sender={r['sender_status']} digits={r['digit_run']}"
+            )
     print(f"wrote {args.out / 'splits.lock.json'}")
     return 0
 
