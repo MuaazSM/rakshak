@@ -356,3 +356,56 @@ def test_generate_calls_writes_call_description_items(tmp_path):
     assert asyncio.run(synth.generate_calls(complete, out, per_spec=1, log=lambda _: None))[
         "resumed"
     ] == len(items)
+
+
+def test_link_batch_accepts_only_official_links():
+    cat, link = "transaction_alert", "https://www.hdfcbank.com/support"
+    ok = {
+        "text": f"Rs 480 debited from your A/c. Not you? Call 1800 2662. More: {link}",
+        "sender": "AX-HDFCBK",
+    }
+    assert synth.accept_link_response(ok, cat, link)
+    fake = {**ok, "text": ok["text"] + " or http://hdfc-secure-login.in/x"}
+    assert synth.accept_link_response(fake, cat, link) is None
+    no_link = {**ok, "text": "Rs 480 debited from your A/c. Not you? Call 1800 2662."}
+    assert synth.accept_link_response(no_link, cat, link) is None
+    other = {**ok, "text": "Rs 480 debited from your A/c. More: https://www.icicibank.com/support"}
+    assert synth.accept_link_response(other, cat, link) is None  # must contain the given link
+    otp = {**ok, "text": f"Please share your OTP now at {link}"}
+    assert synth.accept_link_response(otp, cat, link) is None
+
+
+def test_generate_links_groups_and_resume(tmp_path):
+    async def complete(prompt: str) -> str:
+        link = prompt.split("written exactly like this: ")[1].split("\n")[0]
+        cat = prompt.split("GENUINE message of type ")[1].split(" ")[0]
+        body = {
+            "genuine_otp": "<OTP> is your OTP. Do not share it with anyone.",
+            "transaction_alert": "Rs 99 debited from your A/c. Not you? Call 1800 2662.",
+            "delivery_update": "Your order is out for delivery today with the courier.",
+            "legit_promo": "Big sale offer this weekend with 20% off, T&C apply.",
+            "govt_genuine": "Your electricity bill is generated, due date 15-10-2026.",
+        }[cat]
+        return json.dumps({"text": f"{body} Details: {link}", "sender": "AX-HDFCBK"})
+
+    out = tmp_path / "b3.jsonl"
+    stats = asyncio.run(synth.generate_links(complete, out, per_group=2, log=lambda _: None))
+    items = synth.read_items(out)
+    assert (
+        stats["generated"]
+        == len(items)
+        == 5 * synth.LINK_GROUPS_PER_CATEGORY * 2 - stats.get("dropped", 0)
+    )
+    assert all(
+        i["verdict"] == "SAFE" and i["meta"]["seed_group"].startswith("links-") for i in items
+    )
+    assert all(normalize_has_url(i["text"]) for i in items)
+    assert asyncio.run(synth.generate_links(complete, out, per_group=2, log=lambda _: None))[
+        "resumed"
+    ] == len(items)
+
+
+def normalize_has_url(text: str) -> bool:
+    from hub.normalize import extract_urls
+
+    return bool(extract_urls(text))

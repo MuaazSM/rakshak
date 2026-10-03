@@ -34,7 +34,7 @@ from pathlib import Path
 from datasketch import MinHash, MinHashLSH
 
 from hub.detector import chat_example
-from hub.normalize import normalize_text, sender_status
+from hub.normalize import extract_urls, normalize_text, sender_status
 from hub.rules import rule_signals
 from hub.schemas import DetectorOutput
 from training.label import REAL_SOURCES, load_items, load_labels
@@ -305,29 +305,66 @@ def fill_placeholders(item: dict, rng: random.Random) -> dict | None:
     return {**item, "text": apply(0, len(text)), "red_flags": flags}
 
 
-def add_reference(item: dict, rng: random.Random) -> dict:
-    """Append a masked account / reference number to a scam-side text (quotes stay valid), so
-    digit-run formats are not tied to SAFE."""
-    hi = item["language"] == "hi"
-    tail = rng.choice(
-        [
-            f"Ref No: {_digits(rng, 8, 12)}",
-            f"A/c XX{_digits(rng, 4, 4)}",
-            f"Case ID {_digits(rng, 6, 9)}",
-            f"Txn ID {_digits(rng, 10, 12)}",
-        ]
+_REF_TAILS = {
+    "SAFE": {
+        "transaction_alert": ["UPI Ref No: {d8_12}", "Ref No: {d8_12}", "A/c XX{d4}", "Txn ID {d10_12}"],
+        "genuine_otp": ["Ref {d6_9}", "Txn ID {d10_12}", "Ref No: {d8_12}"],
+        "delivery_update": ["Order ID {d8_12}", "AWB {d10_12}", "Ref No: {d8_12}", "Tracking ID {d10_12}"],
+        "govt_genuine": ["Ref No: {d8_12}", "Consumer No. {d10_12}", "Ack No {d8_12}", "Case ID {d6_9}"],
+    },
+    "SCAM": ["Ref No: {d8_12}", "A/c XX{d4}", "Case ID {d6_9}", "Txn ID {d10_12}"],
+}  # fmt: skip
+REF_RATE = 0.35
+
+
+def _tail(pattern: str, rng: random.Random) -> str:
+    return pattern.format(
+        d4=_digits(rng, 4, 4),
+        d6_9=_digits(rng, 6, 9),
+        d8_12=_digits(rng, 8, 12),
+        d10_12=_digits(rng, 10, 12),
     )
-    if hi and tail.startswith("Ref"):
+
+
+def add_reference(item: dict, rng: random.Random) -> dict:
+    """Append a masked account / reference / order id to a text (quotes stay valid), at the same
+    rate for scam-side and natural genuine categories, so id-style endings do not separate
+    verdicts."""
+    pools = _REF_TAILS["SAFE"].get(item["category"]) if item["verdict"] == "SAFE" else None
+    pool = pools or _REF_TAILS["SCAM"]
+    tail = _tail(rng.choice(pool), rng)
+    if item["language"] == "hi" and tail.startswith("Ref"):
         tail = f"संदर्भ संख्या: {_digits(rng, 8, 12)}"
     sep = "\n" if item["channel"] == "whatsapp" and rng.random() < 0.3 else " "
     return {**item, "text": f"{item['text']}{sep}{tail}"}
+
+
+_EMOJI = {
+    "personal": ["🙏", "😊", "👍", "❤️", "🙂"],
+    "legit_promo": ["🎉", "🔥", "🛍️", "✨"],
+    "delivery_update": ["📦", "🚚", "✅"],
+}
+EMOJI_RATE = 0.15
+_EMOJI_RE = re.compile("[\U0001f300-\U0001faff\u2600-\u27bf\u2b50\u2b06\u2705\ufe0f]")
+
+
+def add_emoji(item: dict, rng: random.Random) -> dict:
+    """Emoji on genuine personal / promo / delivery texts, so emoji is not a scam-only cue."""
+    emo = rng.choice(_EMOJI[item["category"]])
+    text = item["text"]
+    if item["category"] == "legit_promo" and rng.random() < 0.5:
+        text = f"{emo} {text}"
+    else:
+        text = f"{text} {emo}"
+    return {**item, "text": text}
 
 
 def diversify(item: dict, seed: int) -> dict | None:
     """Deterministic per-item (seeded by id) format changes applied at build time; the source
     batch files are never modified:
       * <OTP> / <ACCT> placeholders -> realistic digits (consistent in text and quotes);
-      * ~35% of SCAM and ~35% of SUSPICIOUS texts get a masked account / reference number;
+      * ~35% of SCAM, SUSPICIOUS and SAFE (transaction/otp/delivery/govt) texts get a masked
+        account / reference / order id suffix; ~15% of SAFE personal/promo/delivery get an emoji;
       * `personal` SAFE senders: 45% phone numbers, 15% unknown, rest contact names; 15% of SAFE
         delivery updates come from a delivery agent's +91 number; a further 20% of
         non-call SCAM/SUSPICIOUS senders become spoofed DLT-style headers;
@@ -336,8 +373,12 @@ def diversify(item: dict, seed: int) -> dict | None:
     out = fill_placeholders(item, rng)
     if out is None:
         return None
-    if out["verdict"] != "SAFE" and rng.random() < 0.35:
+    if rng.random() < REF_RATE and (
+        out["verdict"] != "SAFE" or out["category"] in _REF_TAILS["SAFE"]
+    ):
         out = add_reference(out, rng)
+    if out["verdict"] == "SAFE" and out["category"] in _EMOJI and rng.random() < EMOJI_RATE:
+        out = add_emoji(out, rng)
     if out["verdict"] == "SAFE":
         phone = f"+91 {rng.choice('6789')}{_digits(rng, 4, 4)} {rng.randrange(10**5):05d}"
         r = rng.random()
@@ -371,13 +412,18 @@ def shortcut_report(examples: list[dict]) -> dict[str, dict[str, dict[str, float
         users = [e["messages"][1]["content"] for e in xs]
         status = Counter(re.search(r"SENDER: .*\((\w+)\)\n", u).group(1) for u in users)
         chan = Counter(re.match(r"CHANNEL: (\w+)", u).group(1) for u in users)
-        digit = sum(bool(re.search(r"\d{4,}", u.split("MESSAGE:\n", 1)[1])) for u in users)
+        bodies = [u.split("MESSAGE:\n", 1)[1] for u in users]
+        digit = sum(bool(re.search(r"\d{4,}", b)) for b in bodies)
+        url = sum(bool(extract_urls(b)) for b in bodies)
+        emoji = sum(bool(_EMOJI_RE.search(b)) for b in bodies)
         n = len(xs)
         rep[v] = {
             "n": n,
             "channel": {k: round(c / n, 2) for k, c in sorted(chan.items())},
             "sender_status": {k: round(c / n, 2) for k, c in sorted(status.items())},
             "digit_run": round(digit / n, 2),
+            "has_url": round(url / n, 2),
+            "has_emoji": round(emoji / n, 2),
         }
     return rep
 
@@ -580,7 +626,7 @@ def main(argv: list[str] | None = None) -> int:
     for name, ex in (("train", train), ("dev", dev)):
         for v, r in shortcut_report(ex).items():
             print(
-                f"[{name}] {v:<10} n={r['n']} channel={r['channel']} sender={r['sender_status']} digits={r['digit_run']}"
+                f"[{name}] {v:<10} n={r['n']} channel={r['channel']} sender={r['sender_status']} digits={r['digit_run']} url={r['has_url']} emoji={r['has_emoji']}"
             )
     print(f"wrote {args.out / 'splits.lock.json'}")
     return 0

@@ -764,6 +764,159 @@ async def generate_calls(
     return dict(stats)
 
 
+# --- genuine messages with real official links (no seed text) ---------------------------------
+
+# Without these, "contains a link" separates SCAM from SAFE perfectly. Each group fixes a few
+# domains from hub/data/official_domains.txt; every URL in an accepted item must be official.
+LINK_DOMAINS = {
+    "transaction_alert": ["hdfcbank.com", "icicibank.com", "axisbank.com", "onlinesbi.sbi", "kotak.com", "sbi.co.in"],
+    "genuine_otp": ["hdfcbank.com", "icicibank.com", "axisbank.com", "onlinesbi.sbi", "paytm.com", "phonepe.com"],
+    "delivery_update": ["amazon.in", "indiapost.gov.in", "amazon.in", "indiapost.gov.in"],
+    "legit_promo": ["amazon.in", "phonepe.com", "paytm.com", "google.com", "cred.club", "mobikwik.com"],
+    "govt_genuine": ["incometax.gov.in", "uidai.gov.in", "epfindia.gov.in", "mahadiscom.in", "tatapower.com",
+                     "adanielectricity.com", "bestundertaking.com", "torrentpower.com", "passportindia.gov.in",
+                     "digilocker.gov.in"],
+}  # fmt: skip
+LINK_PATHS = {
+    "transaction_alert": ["support", "security", "branch-locator", "kyc-info"],
+    "genuine_otp": ["security-tips", "fraud-alert", "safe-banking"],
+    "delivery_update": ["track", "your-orders", "tracking"],
+    "legit_promo": ["offers", "sale", "deals"],
+    "govt_genuine": ["services", "status", "help", "notices"],
+}
+LINK_GROUPS_PER_CATEGORY = 4
+LINK_PREFIX = "links-"
+
+
+def link_for(category: str, group: int, n: int) -> str:
+    rng = random.Random(f"{BUILD_SEED}|link|{category}|{group}|{n}")
+    domains = LINK_DOMAINS[category]
+    d = domains[(group * 3 + n) % len(domains)]
+    path = rng.choice(LINK_PATHS[category])
+    host = d if d.endswith((".gov.in", ".sbi")) and rng.random() < 0.5 else f"www.{d}"
+    return rng.choice([f"https://{host}/{path}", f"https://{host}/{path}", f"{host}/{path}"])
+
+
+def links_prompt(category: str, language: str, channel: str, detail: str, link: str) -> str:
+    base = hardneg_prompt(category, language, channel, detail, "(none)")
+    base = base.replace("Style example (write something different): (none)\n", "")
+    base = base.replace('Return JSON only: {"text": "...", "sender": "..."}', "").rstrip()
+    return (
+        f"{base}\nThe message must also contain exactly this official link, written exactly like this: {link}\n"
+        "The link is only for information (for example support, tracking, security tips or details); the "
+        "message must not ask the reader to log in, enter details, pay or install anything through it, and "
+        "must not contain any other link.\n"
+        'Return JSON only: {"text": "...", "sender": "..."}'
+    )
+
+
+def accept_link_response(obj: dict | None, category: str, link: str) -> dict | None:
+    """Genuine item with at least one URL, every URL official, no hard rule signal and no
+    OTP-share / urgency-plus-payment signal."""
+    got = accept_response(obj, {"verdict": "SAFE", "category": category}, set())
+    if got is None:
+        return None
+    n = normalize(got["text"], got["sender"])
+    data = load_rule_data()
+    hosts = [_host(u) for u in n.urls]
+    if not hosts or any(h is None or not _is_allowed(h, data) for h in hosts):
+        return None
+    if link.split("://")[-1].rstrip("/") not in got["text"]:
+        return None
+    if set(evaluate(n).soft) & {"asks_otp_or_pin", "urgency_plus_payment", "shortener_link"}:
+        return None
+    return got
+
+
+async def generate_links(
+    complete: Complete,
+    out_path: Path,
+    *,
+    per_group: int = 8,
+    concurrency: int = 4,
+    deadline: float | None = None,
+    log: Callable[[str], None] = print,
+) -> dict[str, int]:
+    """Batch of genuine items with official links, `LINK_GROUPS_PER_CATEGORY` seed groups of
+    `per_group` items per safe category. Resumable by key."""
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    done = {it["meta"]["key"] for it in read_items(out_path)}
+    sem, stats = asyncio.Semaphore(concurrency), Counter()
+
+    async def one(category: str, k: int, n: int, fh) -> None:
+        group = f"{LINK_PREFIX}{category}-{k}"
+        key = f"{group}/{n}"
+        if key in done:
+            stats["resumed"] += 1
+            return
+        if deadline is not None and time.time() > deadline:
+            stats["skipped_deadline"] += 1
+            return
+        rng = random.Random(f"{BUILD_SEED}|{key}")
+        language = LANGUAGES[(n + k) % 3]
+        channel = rng.choices(CHANNELS, [3, 1])[0]
+        link = link_for(category, k, n)
+        prompt = links_prompt(category, language, channel, hints(rng, scam=False), link)
+        got = None
+        async with sem:
+            for _ in range(MAX_RETRIES + 1):
+                try:
+                    raw = await complete(prompt)
+                except (httpx.TransportError, httpx.HTTPStatusError, KeyError, ValueError):
+                    await asyncio.sleep(2)
+                    continue
+                got = accept_link_response(parse_json(raw), category, link)
+                if got:
+                    break
+        item = (
+            finalize_item(
+                {
+                    "id": f"syn-{group}-{n}",
+                    "text": got["text"],
+                    "sender": got["sender"],
+                    "channel": channel,
+                    "verdict": "SAFE",
+                    "category": category,
+                    "red_flags": [],
+                    "language": relabel_language(language, got["text"]),
+                    "meta": {
+                        "requested_language": language,
+                        "source": "synthetic",
+                        "seed_group": group,
+                        "scenario": n,
+                        "variant": 0,
+                        "key": key,
+                        "obfuscation": "none",
+                        "obfuscated": False,
+                        "hard_negative": True,
+                        "generator": GENERATOR,
+                    },
+                },
+                strict=True,
+            )
+            if got
+            else None
+        )
+        if item is None:
+            stats["dropped"] += 1
+            return
+        fh.write(json.dumps(item, ensure_ascii=False) + "\n")
+        fh.flush()
+        stats["generated"] += 1
+
+    with out_path.open("a", encoding="utf-8") as fh:
+        await asyncio.gather(
+            *(
+                one(c, k, n, fh)
+                for n in range(per_group)
+                for k in range(LINK_GROUPS_PER_CATEGORY)
+                for c in LINK_DOMAINS
+            )
+        )
+    log(f"links: {len(done) + stats['generated']} items total")
+    return dict(stats)
+
+
 # --- sanity pass over the review sample -------------------------------------------------------
 
 
@@ -888,6 +1041,23 @@ async def amain(args: argparse.Namespace) -> int:
     from hub.settings import get_settings
 
     cfg = get_settings()
+    if args.links:
+        out_path = args.out / f"{args.batch_id}.jsonl"
+        async with httpx.AsyncClient(timeout=httpx.Timeout(600.0)) as client:
+            complete = make_complete(cfg.ollama_host, cfg.gemma_model, client)
+            stats = await generate_links(
+                complete,
+                out_path,
+                per_group=args.per_spec,
+                concurrency=args.concurrency,
+                deadline=parse_until(args.until),
+            )
+        items = read_items(out_path)
+        write_review(items, args.out / f"review_{args.batch_id}.jsonl")
+        print(f"links items={len(items)} run={stats}")
+        for key, c in counts(items).items():
+            print(f"  {key:<14} " + "  ".join(f"{k}={v}" for k, v in c.items()))
+        return 0
     if args.calls:
         out_path = args.out / f"{args.batch_id}.jsonl"
         async with httpx.AsyncClient(timeout=httpx.Timeout(600.0)) as client:
@@ -941,6 +1111,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--concurrency", type=int, default=4)
     ap.add_argument(
         "--calls", action="store_true", help="generate the seedless call-description batch"
+    )
+    ap.add_argument(
+        "--links", action="store_true", help="generate the genuine-with-official-links batch"
     )
     ap.add_argument("--per-spec", type=int, default=8)
     ap.add_argument("--only-categories", help="comma-separated seed categories to (re)generate")

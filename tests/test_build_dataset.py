@@ -251,3 +251,34 @@ def test_build_leaves_no_placeholders_and_reports_shortcuts():
     )
     rep = bd.shortcut_report(train)
     assert set(rep) == {"SAFE", "SCAM"} and rep["SAFE"]["digit_run"] > 0.9
+
+
+def test_safe_references_and_emoji_at_scam_like_rates():
+    safe = [
+        item(i, "s", "Rs 480 debited from your account.", "SAFE", "transaction_alert")
+        for i in range(1000, 1400)
+    ]
+    out = [bd.diversify(it, 3) for it in safe]
+    with_ref = sum(len(x["text"]) > len(y["text"]) for x, y in zip(out, safe, strict=True))
+    assert 0.25 < with_ref / len(out) < 0.45
+    promo = [
+        item(i, "p", "Big sale this weekend at our store.", "SAFE", "legit_promo")
+        for i in range(2000, 2400)
+    ]
+    emo = sum(bool(bd._EMOJI_RE.search(bd.diversify(it, 3)["text"])) for it in promo)
+    assert 0.08 < emo / len(promo) < 0.25
+    # no suffix for categories where an id would be unnatural
+    cheer = [
+        item(i, "c", "Big sale this weekend.", "SAFE", "legit_promo") for i in range(3000, 3200)
+    ]
+    assert all("Ref" not in bd.diversify(it, 3)["text"] for it in cheer)
+
+
+def test_shortcut_report_has_url_and_emoji_shares():
+    p = pool()
+    for it in p[:20]:
+        it["text"] += " visit hdfcbank.com/support 😊"
+    train, _, _ = bd.build(p, test_index=None, dev_per_stratum=4, dev_max_per_group=4)
+    rep = bd.shortcut_report(train)
+    assert {"has_url", "has_emoji", "digit_run"} <= set(rep["SCAM"])
+    assert rep["SCAM"]["has_url"] > 0

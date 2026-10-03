@@ -1,63 +1,63 @@
 {
   "train": {
     "path": "train.jsonl",
-    "sha256": "8a4dc908f129ba474a5cba5842bc706092c50eb87887a4c2181779a09d86222f",
-    "n": 736,
+    "sha256": "3ebe7af0605645c8066b519c67133367cb91c07b8510c8c122a8b87e34568eb6",
+    "n": 936,
     "counts": {
       "verdict": {
-        "SAFE": 255,
-        "SCAM": 428,
-        "SUSPICIOUS": 53
+        "SAFE": 451,
+        "SCAM": 425,
+        "SUSPICIOUS": 60
       },
       "category": {
         "courier_parcel": 35,
-        "delivery_update": 66,
-        "digital_arrest": 50,
-        "electricity_disconnect": 53,
+        "delivery_update": 102,
+        "digital_arrest": 51,
+        "electricity_disconnect": 51,
         "family_emergency": 35,
-        "genuine_otp": 33,
-        "govt_genuine": 36,
+        "genuine_otp": 75,
+        "govt_genuine": 85,
         "investment_tips": 28,
-        "kyc_account_block": 43,
-        "legit_promo": 27,
-        "lottery_prize": 32,
+        "kyc_account_block": 40,
+        "legit_promo": 53,
+        "lottery_prize": 31,
         "malicious_apk": 32,
-        "other_scam": 83,
+        "other_scam": 90,
         "otp_phishing": 29,
         "personal": 25,
-        "task_job_offer": 30,
-        "transaction_alert": 68,
-        "upi_collect_refund": 31
+        "task_job_offer": 31,
+        "transaction_alert": 111,
+        "upi_collect_refund": 32
       },
       "language": {
-        "en": 240,
-        "hi": 209,
-        "hinglish": 287
+        "en": 308,
+        "hi": 274,
+        "hinglish": 354
       },
       "source": {
-        "synthetic": 736
+        "synthetic": 936
       },
       "obfuscated": {
-        "false": 468,
-        "true": 268
+        "false": 671,
+        "true": 265
       },
       "hard_negative": {
-        "false": 618,
-        "true": 118
+        "false": 719,
+        "true": 217
       }
     },
-    "built_at": "2026-10-03T00:36:32+00:00",
-    "git_sha": "68cd9ea2c1a7ffd117db0510c313eba7153ff463"
+    "built_at": "2026-10-03T01:21:52+00:00",
+    "git_sha": "e63565831a698d9db2619cccd40f31b3eb1a3720"
   },
   "dev": {
     "path": "dev.jsonl",
-    "sha256": "9d387b981d6474bc8ad055e15010eff5feaf298a026c3ec82faa58101cfccca2",
-    "n": 166,
+    "sha256": "e0464582477c81bf5a7fc59f694dc4356ef53f218b79bbccff9c9e6ba6e322b2",
+    "n": 159,
     "counts": {
       "verdict": {
         "SAFE": 55,
         "SCAM": 96,
-        "SUSPICIOUS": 15
+        "SUSPICIOUS": 8
       },
       "category": {
         "courier_parcel": 8,
@@ -65,39 +65,39 @@
         "digital_arrest": 8,
         "electricity_disconnect": 8,
         "family_emergency": 8,
-        "genuine_otp": 7,
+        "genuine_otp": 8,
         "govt_genuine": 15,
         "investment_tips": 8,
         "kyc_account_block": 8,
         "legit_promo": 8,
         "lottery_prize": 8,
         "malicious_apk": 8,
-        "other_scam": 23,
+        "other_scam": 16,
         "otp_phishing": 8,
         "personal": 8,
         "task_job_offer": 8,
-        "transaction_alert": 9,
+        "transaction_alert": 8,
         "upi_collect_refund": 8
       },
       "language": {
-        "en": 65,
+        "en": 61,
         "hi": 41,
-        "hinglish": 60
+        "hinglish": 57
       },
       "source": {
-        "synthetic": 166
+        "synthetic": 159
       },
       "obfuscated": {
-        "false": 111,
-        "true": 55
+        "false": 95,
+        "true": 64
       },
       "hard_negative": {
-        "false": 147,
-        "true": 19
+        "false": 138,
+        "true": 21
       }
     },
-    "built_at": "2026-10-03T00:36:32+00:00",
-    "git_sha": "68cd9ea2c1a7ffd117db0510c313eba7153ff463"
+    "built_at": "2026-10-03T01:21:52+00:00",
+    "git_sha": "e63565831a698d9db2619cccd40f31b3eb1a3720"
   },
   "test": null,
   "provisional": true,
@@ -110,10 +110,10 @@
     "minhash": "char 5-grams, Jaccard >= 0.8",
     "invalid_dropped": 0,
     "diversify": "placeholders->digits, scam refs 35%, safe phone senders, screenshot 15%",
-    "pool": 1106,
-    "after_leakage": 1106,
-    "train_dup_removed": 24,
-    "dev_groups": 21,
-    "discarded_dev_group_items": 180
+    "pool": 1269,
+    "after_leakage": 1269,
+    "train_dup_removed": 22,
+    "dev_groups": 20,
+    "discarded_dev_group_items": 152
   }
 }
