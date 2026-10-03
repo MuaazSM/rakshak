@@ -144,6 +144,12 @@ def item_rows(items: list[Item], golds: list[Gold], preds: list[Pred]) -> list[d
     ]
 
 
+def _rel(path: Path) -> str:
+    """Repo-relative path when possible (accepts relative or absolute input)."""
+    p = Path(path).resolve()
+    return str(p.relative_to(ROOT)) if p.is_relative_to(ROOT) else str(p)
+
+
 def build_result(
     system: str,
     split: str,
@@ -164,7 +170,7 @@ def build_result(
         "slices": slice_metrics(items, golds, preds),
         "timestamp": datetime.now(UTC).isoformat(timespec="seconds"),
         "git_sha": git_sha(),
-        "data": {"path": str(path.relative_to(ROOT)), "sha256": sha256_file(path)},
+        "data": {"path": _rel(path), "sha256": sha256_file(path)},
         **(extra or {}),
     }
 
