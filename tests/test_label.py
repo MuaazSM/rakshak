@@ -68,3 +68,20 @@ def test_saves_after_each_item_and_resumes(tmp_path):
     labeler, _ = scripted(["s"])  # resumes at the unlabeled item and skips it
     assert run(d, labels, labeler) == 0
     assert set(load_labels(labels)) == {"s1"}
+
+
+def test_public_report_is_labelable_but_never_test(tmp_path):
+    # Advisory (public_report) items are a separate eval slice, never the frozen test set (§10.2).
+    report = {
+        "id": "p1",
+        "text": "Your parcel is held at customs. Pay Rs 499 at http://customs-fee.example",
+        "channel": "sms",
+        "source": "public_report",
+        "source_url": "https://example.org/advisory/1",
+    }
+    d, labels = write_items(tmp_path, report)
+    labeler, _ = scripted(["SCAM", "courier", "", "en", "", "n"])  # no TEST prompt for advisory
+    run(d, labels, labeler)
+    lab = load_labels(labels)["p1"]
+    assert lab["source"] == "public_report" and lab["source_phone"] is None
+    assert lab["is_test"] is False

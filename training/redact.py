@@ -3,7 +3,7 @@
     uv run python -m training.redact [--raw data/raw] [--out data/redacted]
         [--names data/redaction_names.txt] [--force]
 
-Reads `data/raw/*.jsonl` (fields: id, text, sender?, channel, source) and writes the same
+Reads `data/raw/*.jsonl` (fields: id, text, sender?, channel, source, source_url?) and writes the same
 records with `text` and `sender` masked to `data/redacted/<same name>.jsonl`.
 
 Masks (§10.3):
@@ -208,6 +208,8 @@ def redact_record(rec: dict, names: Names) -> tuple[dict, Counter]:
     for key in ("id", "text", "channel", "source"):
         if key not in rec:
             raise ValueError(f"record {rec.get('id', '?')!r} is missing {key!r}")
+    if rec["source"] == "public_report" and not rec.get("source_url"):
+        raise ValueError(f"record {rec['id']!r}: public_report needs source_url (PRD §10.2)")
     counts: Counter = Counter()
     out = dict(rec)
     out["text"] = redact_text(rec["text"], names, counts)

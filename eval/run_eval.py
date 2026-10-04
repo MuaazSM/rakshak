@@ -94,6 +94,8 @@ def split_path(split: str, final_eval: bool, splits_dir: Path = SPLITS) -> Path:
         if not test.exists():
             raise EvalRefused(f"{test} does not exist; there is no frozen test set")
         return test
+    if split == "advisory":  # separate public-advisory eval slice (PRD §10.2), never the test set
+        return splits_dir / "advisory_eval.jsonl"
     if split not in ("train", "dev"):
         raise EvalRefused(f"unknown split {split!r}")
     return splits_dir / f"{split}.jsonl"

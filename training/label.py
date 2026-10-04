@@ -6,7 +6,8 @@ Walks every item in `data/redacted/*.jsonl` (files starting with `_` are skipped
 no label yet, shows its text and asks for: verdict, category, red-flag quotes (each must be
 an exact substring of the text) with a reason, language, source_phone, obfuscated, and
 whether the item is TEST (test items are never used as synthesis seeds; only real
-`family_real` / `own_inbox` items can be test, PRD §10.5).
+`family_real` / `own_inbox` items can be test, PRD §10.5). `public_report` (advisory) items are
+labelable but never TEST — they form a separate eval slice via `training.build_advisory` (§10.2).
 
 Each label is appended to the labels file as soon as the item is done, so quitting loses at
 most the current item. The last label for an id wins. At any prompt: `s` skips the item,
@@ -29,7 +30,12 @@ SAFE_CATEGORIES = list(get_args(SafeCategory))
 REASONS = list(get_args(Reason))
 LANGUAGES = ["en", "hinglish", "hi"]
 SOURCE_PHONES = ["mom", "dad", "own", "relative"]
+# Only the owner's own messages can become the frozen TEST set or train real items (PRD §10.5).
 REAL_SOURCES = {"family_real", "own_inbox"}
+PHONE_SOURCES = {"family_real", "own_inbox"}  # public reports come from no phone of ours
+# Public advisory sources: labelable, but never TEST and never train — a separate eval slice
+# built by `training.build_advisory` (PRD §10.2).
+ADVISORY_SOURCES = {"public_report"}
 
 
 class Skip(Exception):
@@ -139,10 +145,15 @@ class Labeler:
         flags = [] if verdict == "SAFE" else self.red_flags(text)
         language = self.choose("language", LANGUAGES)
         is_real = item.get("source") in REAL_SOURCES
-        source_phone = self.choose("source_phone", SOURCE_PHONES, allow_blank=not is_real)
+        source_phone = self.choose(
+            "source_phone", SOURCE_PHONES, allow_blank=item.get("source") not in PHONE_SOURCES
+        )
         obfuscated = self.yes_no("obfuscated")
         if is_real:
             is_test = self.yes_no("TEST item (never a seed)")
+        elif item.get("source") in ADVISORY_SOURCES:
+            is_test = False
+            self.say(f"  (source={item.get('source')}: advisory — separate eval slice, never test)")
         else:
             is_test = False
             self.say(f"  (source={item.get('source')}: not real, so not test)")

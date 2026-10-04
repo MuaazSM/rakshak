@@ -112,7 +112,7 @@ def load_synthetic(directory: Path) -> tuple[list[dict], int]:
 
 
 def load_real(redacted: Path, labels_path: Path) -> tuple[list[dict], int]:
-    """Labeled, non-TEST real items (family_real / own_inbox). Empty when nothing is labeled."""
+    """Labeled, non-TEST real items (REAL_SOURCES). Empty when nothing is labeled."""
     labels = load_labels(labels_path)
     by_id = {it["id"]: it for it in load_items(redacted)} if redacted.exists() else {}
     items, bad = [], 0

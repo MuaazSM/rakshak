@@ -203,3 +203,11 @@ def test_digits_left_flags_unmasked_numbers_only():
 
     assert digits_left({"text": "call +91 9876<PHONE>, pay Rs 5000, see bit.ly/12345"}) == 0
     assert digits_left({"text": "send 20000 on GPay"}) == 1
+
+
+def test_public_report_requires_source_url():
+    rec = {"id": "p1", "text": "Pay Rs 499 now", "channel": "sms", "source": "public_report"}
+    with pytest.raises(ValueError, match="source_url"):
+        redact_record(rec, NAMES)
+    rec["source_url"] = "https://example.org/advisory/1"
+    assert redact_record(rec, NAMES)[0]["source_url"] == rec["source_url"]
